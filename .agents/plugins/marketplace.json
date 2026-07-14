@@ -1,11 +1,11 @@
 {
-  "name": "agentic-engineering",
+  "name": "primitives",
   "interface": {
-    "displayName": "Agentic Engineering"
+    "displayName": "Primitives"
   },
   "plugins": [
     {
-      "name": "agentic-engineering",
+      "name": "primitives",
       "source": {
         "source": "local",
         "path": "./"

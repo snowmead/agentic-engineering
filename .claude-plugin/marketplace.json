@@ -1,17 +1,17 @@
 {
-  "name": "agentic-engineering",
+  "name": "primitives",
   "owner": {
     "name": "Michael Assaf",
     "email": "michael@snowmead.com"
   },
   "metadata": {
-    "description": "Skills and tools for agentic engineering."
+    "description": "Reusable agent primitives — skills and tools for coding agents."
   },
   "plugins": [
     {
-      "name": "agentic-engineering",
+      "name": "primitives",
       "source": "./",
-      "description": "Skills and tools for agentic engineering."
+      "description": "Reusable agent primitives — skills and tools for coding agents."
     }
   ]
 }

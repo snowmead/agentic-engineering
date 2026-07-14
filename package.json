@@ -1,15 +1,15 @@
 {
-  "name": "agentic-engineering",
+  "name": "primitives",
   "version": "0.1.0",
   "private": true,
-  "description": "Skills and tools for agentic engineering.",
+  "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": "Michael Assaf <michael@snowmead.com>",
   "license": "MIT",
   "keywords": [
     "pi-package",
-    "agentic",
-    "engineering",
-    "skills"
+    "primitives",
+    "skills",
+    "agents"
   ],
   "pi": {
     "skills": [

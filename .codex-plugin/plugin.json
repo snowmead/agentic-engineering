@@ -1,21 +1,21 @@
 {
-  "name": "agentic-engineering",
+  "name": "primitives",
   "version": "0.1.0",
-  "description": "Skills and tools for agentic engineering.",
+  "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": {
     "name": "Michael Assaf",
     "email": "michael@snowmead.com"
   },
   "license": "MIT",
   "keywords": [
-    "agentic",
-    "engineering",
-    "skills"
+    "primitives",
+    "skills",
+    "agents"
   ],
   "skills": "./.agents/skills/",
   "interface": {
-    "displayName": "Agentic Engineering",
-    "shortDescription": "Skills and tools for agentic engineering.",
+    "displayName": "Primitives",
+    "shortDescription": "Reusable agent primitives — skills and tools for coding agents.",
     "developerName": "Michael Assaf",
     "category": "Productivity",
     "defaultPrompt": [
