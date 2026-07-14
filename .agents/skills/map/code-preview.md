@@ -59,7 +59,7 @@ run **one** update — it regenerates preview bodies **and** the file tree:
 
 ```bash
 # SKILL_DIR = directory containing this skill's SKILL.md
-# MAP_FILE = .canvas.tsx (Canvas) or $TMPDIR/maps/<name>/src/Map.tsx (Bun)
+# MAP_FILE = .canvas.tsx (Canvas) or $TMPDIR/<repo-slug>/maps/<name>/src/Map.tsx (Bun)
 cd "$SKILL_DIR/scripts"
 
 bun update.ts --file "$MAP_FILE"

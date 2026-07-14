@@ -24,7 +24,7 @@ built from every path referenced in the map.
 | Environment | Host | Deliverable |
 |-------------|------|-------------|
 | Cursor with canvases | **Canvas** (default on Cursor) | `.canvas.tsx` in project canvases dir |
-| Claude / Codex / Pi / no canvases | **Bun React** | copy of `app/` under `$TMPDIR/maps/<name>/` |
+| Claude / Codex / Pi / no canvases | **Bun React** | copy of `app/` under `$TMPDIR/<repo-slug>/maps/<name>/` |
 
 Same data contracts, scripts, and quality bars for both. Do not invent chrome from scratch.
 
@@ -58,16 +58,23 @@ Agents only copy the scaffold — do not edit the generator path unless changing
 
 ### Bun React host (other agents)
 
-Clone the Vite app into a **system temp directory** — never under the target
-repo (`maps/`, `node_modules`, or Vite `dist/` must not land in the project):
+**Cursor / Canvas does not use this path** — canvases already live under
+`~/.cursor/projects/<workspace>/canvases/` (per workspace). Use the block
+below only for Claude / Codex / Pi / no-canvases Bun hosts.
+
+Clone the Vite app into a **per-project system temp directory** — never under
+the target repo (`maps/`, `node_modules`, or Vite `dist/` must not land in the
+project). Resolve the path via `map-dir.ts` (git toplevel basename → slug):
 
 ```bash
-MAP_DIR="${TMPDIR:-/tmp}/maps/<descriptive-name>"
-rm -rf "$MAP_DIR"
-mkdir -p "$MAP_DIR"
-cp -R "$SKILL_DIR/app/." "$MAP_DIR/"
+# from the target repo root (or pass --root /abs/repo)
+MAP_DIR=$(bun "$SKILL_DIR/scripts/map-dir.ts" <descriptive-name> --init)
 MAP_FILE="$MAP_DIR/src/Map.tsx"
+# → $TMPDIR/<repo-slug>/maps/<name>/   e.g. /tmp/opt-stackless/maps/provision
 ```
+
+`map-dir.ts` without `--init` only prints the path (reproducible; same repo +
+name → same dir). With `--init` it wipes that dir and copies `$SKILL_DIR/app`.
 
 `ROOT` in the map data still points at the real repo (for `FILE_MAP`); only the
 host app lives in `$MAP_DIR`.

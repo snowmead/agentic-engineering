@@ -9,7 +9,7 @@ and a **right file tree** for hover-preview navigation.
 
 - **Cursor Canvas:** copy [scaffold.canvas.tsx](scaffold.canvas.tsx) (generated from
   [`app/src/Map.tsx`](app/src/Map.tsx)) into the project `canvases/` dir
-- **Bun React:** copy [`app/`](app/) into `$TMPDIR/maps/<name>/` (never under the target repo)
+- **Bun React:** `bun scripts/map-dir.ts <name> --init` → `$TMPDIR/<repo-slug>/maps/<name>/` (never under the target repo; Canvas/Cursor skips this)
 
 Then replace `ROOT` / `FILE_MAP` / `NODES` / `EDGES` / `ARCH_DIAGRAMS`. Durable
 top-level sections are (1) Mermaid architecture and (2) the React Flow
