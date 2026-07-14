@@ -1,0 +1,14 @@
+{
+  "name": "map-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "update": "bun update.ts",
+    "sync-file-map": "bun sync-file-map.ts",
+    "render-mermaid": "bun render-mermaid.mjs",
+    "build-canvas": "bun build-canvas-scaffold.ts"
+  },
+  "dependencies": {
+    "beautiful-mermaid": "^1.1.3"
+  }
+}

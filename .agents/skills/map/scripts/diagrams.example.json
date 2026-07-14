@@ -1,0 +1,16 @@
+# Example architecture diagrams for map canvases.
+# Render: bun render-mermaid.mjs --json --file diagrams.example.json > /tmp/out.json
+# Then embed svg + hotspots into ARCH_DIAGRAMS in the .canvas.tsx.
+[
+  {
+    "id": "flow",
+    "title": "Flow",
+    "kind": "flowchart",
+    "mermaid": "graph TD\n  A[Entry] --> B[Core]\n  B --> C[Exit]",
+    "hotspots": [
+      { "label": "Entry", "nodeId": "entry" },
+      { "label": "Core", "nodeId": "core" },
+      { "label": "Exit", "nodeId": "exit" }
+    ]
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "name": "agentic-engineering",
+  "version": "0.1.0",
+  "description": "Skills and tools for agentic engineering.",
+  "author": {
+    "name": "Michael Assaf",
+    "email": "michael@snowmead.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agentic",
+    "engineering",
+    "skills"
+  ],
+  "skills": "./.agents/skills/",
+  "interface": {
+    "displayName": "Agentic Engineering",
+    "shortDescription": "Skills and tools for agentic engineering.",
+    "developerName": "Michael Assaf",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Map how this subsystem works",
+      "Build an interactive architecture map",
+      "Walk me through this feature end to end"
+    ]
+  }
+}

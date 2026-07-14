@@ -1,0 +1,19 @@
+{
+  "name": "agentic-engineering",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Skills and tools for agentic engineering.",
+  "author": "Michael Assaf <michael@snowmead.com>",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "agentic",
+    "engineering",
+    "skills"
+  ],
+  "pi": {
+    "skills": [
+      "./.agents/skills"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "agentic-engineering",
+  "displayName": "Agentic Engineering",
+  "version": "0.1.0",
+  "description": "Skills and tools for agentic engineering.",
+  "author": {
+    "name": "Michael Assaf",
+    "email": "michael@snowmead.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agentic",
+    "engineering",
+    "skills"
+  ],
+  "category": "developer-tools",
+  "tags": [
+    "agentic",
+    "engineering"
+  ],
+  "skills": "./.agents/skills/"
+}
