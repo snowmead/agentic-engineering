@@ -21,7 +21,7 @@ import {
   useHostTheme,
   type DiffLineData,
 } from "cursor/canvas";
-import * as MapHost from "./host";
+import * as MapHost from "cursor/canvas";
 import {
   useEffect,
   useMemo,
@@ -133,14 +133,13 @@ const FILE_MAP = {
 type FileMapKey = keyof typeof FILE_MAP;
 
 function fileRef(key: FileMapKey | string): FileRef {
-  return FILE_MAP[key as FileMapKey] as FileRef;
+  return FILE_MAP[key as FileMapKey];
 }
 
 /** Slice FILE_CONTENTS by FILE_MAP line range for sidebar DiffView. */
 function snippet(key: FileMapKey | string): string {
   const ref = fileRef(key);
-  // FILE_CONTENTS is generated in the next marked block.
-  const body = FILE_CONTENTS[ref.path] as string | undefined;
+  const body = FILE_CONTENTS[ref.path];
   if (!body) return "";
   if (ref.line == null) return body.replace(/\n$/, "");
   const lines = body.replace(/\n$/, "").split("\n");
@@ -303,7 +302,7 @@ function fileToPreviewLines(
     const focused =
       start != null && end != null && n >= start && n <= end;
     return {
-      type: (focused ? "added" : "unchanged") as DiffLineData["type"],
+      type: focused ? "added" : "unchanged",
       content: lineContent,
       lineNumber: n,
     };
@@ -437,7 +436,6 @@ function CodePreviewModal({
             path={file.path}
             lines={lines}
             showLineNumbers
-            coloredLineNumbers={false}
             showAccentStrip
           />
         </div>
@@ -482,7 +480,7 @@ function collectFiles(entity: {
   }
   for (const b of entity.body) {
     if (b.type === "code") {
-      const f = fileRef(b.ref as keyof typeof FILE_MAP);
+      const f = fileRef(b.ref);
       const k = fileRefKey(f);
       if (!seen.has(k)) {
         seen.add(k);
@@ -540,9 +538,7 @@ function collectAllMapPaths(): string[] {
   if (MAP_PATHS.length > 0) return [...MAP_PATHS];
   // Fallback before first update: derive from FILE_MAP directly.
   return [
-    ...new Set(
-      Object.values(FILE_MAP).map((r) => (r as FileRef).path),
-    ),
+    ...new Set(Object.values(FILE_MAP).map((r) => r.path)),
   ].sort((a, b) => a.localeCompare(b));
 }
 
@@ -573,7 +569,6 @@ function leavePreview(
   onClearPreview();
 }
 
-/** Scale sidebar type with panel width. */
 function sidebarType(width: number) {
   const t = clamp((width - MIN_SIDEBAR_W) / (MAX_SIDEBAR_W - MIN_SIDEBAR_W), 0, 1);
   return {
@@ -621,13 +616,12 @@ function renderDocBlocks(
               </Text>
             );
           case "code": {
-            const key = block.ref as keyof typeof FILE_MAP;
+            const key = block.ref;
             const file = fileRef(key);
             const code = snippet(key);
             return (
-              <Stack
+              <div
                 key={i}
-                gap={4}
                 onMouseEnter={() => onPreviewFiles?.([file])}
                 onMouseLeave={(e: {
                   currentTarget: EventTarget & { contains(n: Node): boolean };
@@ -636,67 +630,68 @@ function renderDocBlocks(
                   if (onClearPreview) leavePreview(e, onClearPreview);
                 }}
               >
-                <Button
-                  variant="ghost"
-                  onClick={() => previewFile(file)}
-                  style={{
-                    justifyContent: "flex-start",
-                    height: "auto",
-                    minHeight: 0,
-                    padding: "2px 4px",
-                  }}
-                >
-                  <Text
+                <Stack gap={4}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => previewFile(file)}
                     style={{
-                      fontFamily:
-                        "ui-monospace, SFMono-Regular, Menlo, monospace",
-                      color: theme.text.link,
-                      fontSize: typeScale.code,
-                      textAlign: "left",
+                      justifyContent: "flex-start",
+                      height: "auto",
+                      minHeight: 0,
+                      padding: "2px 4px",
                     }}
                   >
-                    {refPathLabel(file)}
-                  </Text>
-                </Button>
-                {block.caption ? (
-                  <Text
+                    <Text
+                      style={{
+                        fontFamily:
+                          "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        color: theme.text.link,
+                        fontSize: typeScale.code,
+                        textAlign: "left",
+                      }}
+                    >
+                      {refPathLabel(file)}
+                    </Text>
+                  </Button>
+                  {block.caption ? (
+                    <Text
+                      style={{
+                        fontSize: typeScale.meta,
+                        color: theme.text.tertiary,
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {block.caption}
+                    </Text>
+                  ) : null}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    title="Preview full file"
+                    onClick={() => previewFile(file)}
+                    onKeyDown={(e: { key: string; preventDefault(): void }) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        previewFile(file);
+                      }
+                    }}
                     style={{
-                      fontSize: typeScale.meta,
-                      color: theme.text.tertiary,
-                      lineHeight: 1.35,
+                      border: `1px solid ${theme.stroke.secondary}`,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      backgroundColor: theme.bg.editor,
+                      cursor: "pointer",
                     }}
                   >
-                    {block.caption}
-                  </Text>
-                ) : null}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  title="Preview full file"
-                  onClick={() => previewFile(file)}
-                  onKeyDown={(e: { key: string; preventDefault(): void }) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      previewFile(file);
-                    }
-                  }}
-                  style={{
-                    border: `1px solid ${theme.stroke.secondary}`,
-                    borderRadius: 6,
-                    overflow: "hidden",
-                    backgroundColor: theme.bg.editor,
-                    cursor: "pointer",
-                  }}
-                >
-                  <DiffView
-                    path={file.path}
-                    lines={codeToDiffLines(code, file.line)}
-                    showLineNumbers={file.line != null}
-                    coloredLineNumbers={false}
-                    showAccentStrip={false}
-                  />
-                </div>
-              </Stack>
+                    <DiffView
+                      path={file.path}
+                      lines={codeToDiffLines(code, file.line)}
+                      showLineNumbers={file.line != null}
+                      showAccentStrip={false}
+                    />
+                  </div>
+                </Stack>
+              </div>
             );
           }
           default: {
@@ -830,8 +825,6 @@ function renderTreeDir(
       const childDirPath = dirRelPath ? `${dirRelPath}/${name}` : name;
       const expanded =
         activePaths.length > 0 && dirShouldExpand(childDirPath, activePaths);
-      const dirLit =
-        activePaths.length > 0 && dirShouldExpand(childDirPath, activePaths);
       const fileCount = countFiles(entry);
       const indent = depth * 14;
 
@@ -845,8 +838,8 @@ function renderTreeDir(
               padding: "2px 6px 2px 0",
               paddingLeft: indent + 6,
               borderRadius: 4,
-              background: dirLit ? theme.fill.tertiary : "transparent",
-              borderLeft: dirLit
+              background: expanded ? theme.fill.tertiary : "transparent",
+              borderLeft: expanded
                 ? `2px solid ${theme.stroke.primary}`
                 : "2px solid transparent",
             }}
@@ -1710,32 +1703,35 @@ export default function MapView() {
                 </Text>
                 <Stack gap={4}>
                   {sidebarFiles.map((f) => (
-                    <Button
+                    <div
                       key={`${f.path}:${f.line ?? 0}`}
-                      variant="ghost"
-                      onClick={() => previewFile(f)}
                       onMouseEnter={() => previewFiles([f])}
                       onMouseLeave={(e) => leavePreview(e, clearPreview)}
-                      style={{
-                        justifyContent: "flex-start",
-                        height: "auto",
-                        minHeight: 0,
-                        padding: "4px 6px",
-                      }}
                     >
-                      <Text
+                      <Button
+                        variant="ghost"
+                        onClick={() => previewFile(f)}
                         style={{
-                          fontFamily:
-                            "ui-monospace, SFMono-Regular, Menlo, monospace",
-                          color: theme.text.link,
-                          fontSize: typeScale.code,
-                          textAlign: "left",
+                          justifyContent: "flex-start",
+                          height: "auto",
+                          minHeight: 0,
+                          padding: "4px 6px",
                         }}
                       >
-                        {f.label ?? f.path.split("/").pop()}
-                        {f.line != null ? `:${f.line}` : ""}
-                      </Text>
-                    </Button>
+                        <Text
+                          style={{
+                            fontFamily:
+                              "ui-monospace, SFMono-Regular, Menlo, monospace",
+                            color: theme.text.link,
+                            fontSize: typeScale.code,
+                            textAlign: "left",
+                          }}
+                        >
+                          {f.label ?? f.path.split("/").pop()}
+                          {f.line != null ? `:${f.line}` : ""}
+                        </Text>
+                      </Button>
+                    </div>
                   ))}
                 </Stack>
               </Stack>
@@ -1756,22 +1752,22 @@ export default function MapView() {
                     Next
                   </Button>
                 </Row>
-              ) : (
+              ) : selectedEdge ? (
                 <Row gap={8} style={{ marginTop: "auto" }} wrap>
                   <Button
                     variant="secondary"
-                    onClick={() => selectNode(selectedEdge!.from)}
+                    onClick={() => selectNode(selectedEdge.from)}
                   >
-                    ← {selectedEdge!.from}
+                    ← {selectedEdge.from}
                   </Button>
                   <Button
                     variant="secondary"
-                    onClick={() => selectNode(selectedEdge!.to)}
+                    onClick={() => selectNode(selectedEdge.to)}
                   >
-                    {selectedEdge!.to} →
+                    {selectedEdge.to} →
                   </Button>
                 </Row>
-              )}
+              ) : null}
             </aside>
             <div
               data-sidebar-resize
@@ -2182,14 +2178,7 @@ export default function MapView() {
         />
       ) : null}
 
-      {/*
-        Add more context below.
-        Ad-hoc sections only — anything that helps the reader go deeper
-        (notes, comparisons, timelines, glossaries, etc.). Do not treat
-        "Gotchas" as required. Mermaid + the React Flow map above are the
-        durable top-level sections; everything under this comment is optional
-        and agent-chosen.
-      */}
+      {/* Add more context below. */}
     </Stack>
   );
 }

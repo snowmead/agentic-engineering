@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 — 2026-07-14
+
+- **map:** deslop scripts/UI/docs — valid example Mermaid JSON, sync without double reads, scaffold rewrites all `./host` imports, Bun `Button` forwards `disabled`, hover on native `div`s
+- **map:** docs consolidate so each contract has one home (SKILL runbook/gates, canvas-pattern layout, architecture-viewport, code-preview FILE_MAP)
+
 ## 0.1.5 — 2026-07-14
 
 - **map:** Bun host path is `$TMPDIR/<repo-slug>/maps/<name>/` via `scripts/map-dir.ts` (Cursor/Canvas unchanged)

@@ -1,12 +1,13 @@
 # Architecture viewport — required contract
 
-**Mandatory.** Every map must implement the architecture
-(Mermaid) panel exactly as specified here. Do **not** ship a static
-`overflow: auto` SVG box. Copy the helpers and interaction model below into the
-`.canvas.tsx` (canvases cannot import sibling files).
+Every map’s Mermaid architecture panel must satisfy this contract. Do **not**
+ship a static `overflow: auto` SVG box.
 
-This file is the source of truth — **copy the helpers below into the canvas**.
-Do not depend on a project-local example canvas existing on disk.
+Helpers and interaction below are **already in the host scaffold**
+([`app/src/Map.tsx`](app/src/Map.tsx) / [`scaffold.canvas.tsx`](scaffold.canvas.tsx)).
+Keep that chrome; do not invent a simpler viewport. If forking the panel,
+preserve this contract end-to-end (canvases cannot import sibling files, so any
+fork must carry the helpers inline).
 
 ## Forbidden (regressions we already hit)
 
@@ -49,7 +50,7 @@ Persist:
 - `useCanvasState("archView", { x, y, zoom })`
 - `useCanvasState("archViewportH", DEFAULT_ARCH_H)`
 
-## Helpers (copy into canvas)
+## Helpers (in scaffold; preserve if forking)
 
 ```ts
 /** Intrinsic SVG size from viewBox — needed so pan/zoom isn't fighting width=100%. */
@@ -255,8 +256,8 @@ Sibling under the viewport (not inside the capture target):
 </div>
 ```
 
-## Toolbar copy
+## Toolbar
 
-Help text must mention the affordances:
-
-> Pan · scroll to zoom · drag the bottom edge to resize · click a shape or chip to focus the map sidebar.
+Toolbar should expose Zoom − / Zoom + / Fit (and zoom %) and surface the
+viewport affordances: pan, scroll-zoom, bottom-edge resize, click shape/chip to
+focus the map sidebar. Exact wording is not mandated.

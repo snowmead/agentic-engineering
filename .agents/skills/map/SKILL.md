@@ -117,7 +117,7 @@ chunk emission, pierre DiffView wiring, and scaffold sync.
    extra sections after that comment when they help the reader. Nothing there is
    required — do **not** add a ritual “Gotchas” block. Mermaid + the React Flow
    map are the only always-on top-level sections.
-8. **Ship only if** architecture + FILE_MAP quality bars below both pass.
+8. **Ship only if** the Quality bar below passes.
    Never deliver the scaffold’s placeholder nodes/paths as a finished map.
 
 **Single source of truth:** all code links live in `FILE_MAP`. `bun update.ts`
@@ -138,48 +138,8 @@ in `.canvas.tsx`. **Bun app:** use `app/src/host` polyfills (already wired). Do
 Default export in `Map.tsx` must be named **`MapView`** (never `Map` — that
 shadows `globalThis.Map` and stack-overflows on load).
 
-## Goal
-
-1. **Architecture first** — interactive beautiful-mermaid diagram(s) that explain
-   the system shape (pick the right Mermaid kind)
-2. See the whole primary flow at once (wrapped snake rows)
-3. Short **teasers** on nodes — never clipped essays
-4. Click a **node or edge** → left sidebar with interleaved prose + code + Source index
-5. **Right file tree** — all paths from nodes/edges, collapsed by default; hover map or sidebar to highlight + expand; drag left edge to resize
-6. Resize left sidebar (font scales), right tree, and map height; pan/zoom the diagram
-
-## Content split
-
-| Surface | Content |
-|--------|---------|
-| Node | Label + teaser (≤ ~10 words) |
-| Edge label | ≤ 3 words on the connector |
-| Sidebar (node) | `body: DocBlock[]` + Source + Prev/Next |
-| Sidebar (edge) | `body: DocBlock[]` + Source + jump to endpoints |
-| File tree (right) | Nested paths from all `FileRef`s; compact by default; hover expands ancestors |
-
-**Prose-only sidebars are an anti-pattern.** Every node and edge sidebar must
-interleave 1–3 short prose blocks with 1–3 verbatim code excerpts (4–14 lines
-each) so the reader never has to reconstruct meaning by jumping around the
-codebase.
-
-Edges are first-class: explain the *relationship* (trait, API, step variant,
-registry lookup), not just the hop name — with real code snippets.
-
-## External UX mapping
-
-Do **not** import Pierre / Mermaid into `Map.tsx` or `.canvas.tsx`. Hosts own
-DiffView:
-
-| Inspiration | Package | Primitive |
-|-------------|---------|-----------|
-| [diffs.com](https://diffs.com/) | `@pierre/diffs` | **`DiffView`** — Canvas: Shiki via `cursor/canvas` + `path`; Bun/Vite: `@pierre/diffs` `File` in `app/src/host` (worker pool in `main.tsx`) |
-| [trees.software](https://trees.software/) | `@pierre/trees` | **File tree** — Canvas: builtin panel in `Map.tsx`; Bun/Vite: `@pierre/trees` in `app/src/host` `FileTreePanel` |
-| [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** via `scripts/render-mermaid.mjs`, embed + hotspot interactivity |
-
-Bun map apps use **Vite** (`bun run dev` → `vite`). Do not revert to
-`Bun.serve` HTML for the map UI — pierre workers need Vite’s `?worker&url`.
-Do not invent a DIY highlighter in `Map.tsx`.
+Host DiffView / tree / Mermaid package mapping:
+[canvas-pattern.md § External UX mapping](canvas-pattern.md#external-ux-mapping).
 
 ## Architecture diagrams (beautiful-mermaid)
 
@@ -225,72 +185,41 @@ bun update.ts --file "$MAP_FILE" --check
    - Tab / pills to switch diagram kinds (Fit on switch)
    - Hotspot chips → `selectNode` / `selectEdge` + `previewFiles` on hover
 
-### Quality bar (architecture)
-
-- [ ] Right diagram *kind* for the story (not everything as a flowchart)
-- [ ] SVG pre-rendered with beautiful-mermaid (not hand-drawn boxes)
-- [ ] Hotspots cover every primary map node referenced in the diagram
-- [ ] Click/hover updates sidebar focus + file-tree highlights
-- [ ] No `beautiful-mermaid` import inside the map UI module
-- [ ] **Pan / wheel-zoom / Zoom± / Fit** on the architecture viewport
-- [ ] **Vertical resize** via bottom `data-arch-resize` (`archViewportH`)
-- [ ] SVG at **intrinsic viewBox** size inside `translate+scale` world (not live `width="100%"`)
-- [ ] Hotspot clicks work **with** `setPointerCapture` (`downTargetRef` + `elementFromPoint`; never bare `e.target` on pointerup)
-- [ ] **Selected** hotspot accent-highlighted in the SVG
-- [ ] **Pointer** cursor over hotspots; grab / grabbing otherwise
+Architecture pan/zoom/hotspot quality:
+[architecture-viewport.md § Required UX checklist](architecture-viewport.md#required-ux-checklist).
 
 ## Distill limits
 
 | Element | Limit |
 |--------|--------|
 | Nodes | 5–12 · 2–3 per row |
-| Node teaser | ≤ ~10 words |
-| Edge label | ≤ 3 words |
+| Node (on card) | Label + teaser ≤ ~10 words |
+| Edge label (on connector) | ≤ 3 words |
 | Sidebar body | 1–3 prose + 1–3 code blocks per node/edge |
 | Code excerpt | 4–14 lines, verbatim from disk |
 | Files per node/edge | 1–3 in Source index (+ refs from code blocks) |
 | Edge gaps | Generous (`GAP_X` ≥ 90, `GAP_Y` ≥ 100); labels sit in a chip clear of nodes |
 
-## Required UX
+**Surfaces:** node/edge chips stay short; detail lives in the sidebar
+(`body: DocBlock[]` + Source + Prev/Next or endpoint jumps). File tree (right)
+lists nested paths from all `FileRef`s — compact by default; hover expands
+ancestors.
 
-- Wrapped snake layout (not one wide horizontal rank)
-- **Three-column layout:** left detail sidebar | map | right file tree
-- Left sidebar; drag its right edge to resize; type scales with width
-- Right file tree; drag its left edge to resize (persisted `treeW`, ~200–720px)
-- Click node **or** edge opens sidebar
-- Pan map; drag bottom handle to resize map height
-- Code path / Source / tree / snippet click → **in-host code preview** (full file + highlight); diagonal arrow → IDE `openFile` (see [code-preview.md](code-preview.md)); snippets via **`DiffView`**; **Source** footer lists all refs
-- **Tree highlight layers:** `selectedPaths` (from focused node/edge — sticky) ∪ `hoverPaths` (ephemeral). Selection stays highlighted after mouse leave; hovering other nodes/edges/links **adds** highlights without clearing selection. Expand ancestors for the union.
-- Tree default: top-level folders only (closed); click tree file → preview popup
-- **Architecture panel** matches [architecture-viewport.md](architecture-viewport.md) end-to-end
+**Prose-only sidebars are an anti-pattern.** Every node and edge sidebar must
+interleave 1–3 short prose blocks with 1–3 verbatim code excerpts so the reader
+never has to reconstruct meaning by jumping around the codebase.
+
+Edges are first-class: explain the *relationship* (trait, API, step variant,
+registry lookup), not just the hop name — with real code snippets.
 
 ## Quality bar
 
-- [ ] Whole path visible at Fit
-- [ ] Edge labels not touching nodes; edges have hit targets
-- [ ] Edge sidebars cite real dependency symbols with code excerpts
-- [ ] Every sidebar interleaves prose + code (no prose-only)
-- [ ] Code blocks have clickable path:line headers → preview popup (not IDE-only)
-- [ ] Preview shows **whole file** with line/range highlight + open-in-editor arrow
-- [ ] Global `FILE_MAP` is the only path registry; `bun update.ts` keeps `FILE_CONTENTS` + `MAP_PATHS` in sync (`--check` clean)
-- [ ] File tree is driven by `MAP_PATHS` (not a hand-built tree / NODES scrape)
-- [ ] Source footer lists union of file refs
-- [ ] Sidebar on the left; width + font scale work
-- [ ] Right file tree lists all map paths; collapses when hover clears
-- [ ] Hover on node/edge/sidebar code highlights tree files
-- [ ] Architecture viewport pans, zooms, Fits, and resizes vertically
-- [ ] Architecture hotspot clicks work under pointer capture
-- [ ] Architecture selection highlight + pointer cursor on hotspots
-- [ ] Architecture section uses beautiful-mermaid SVGs + hotspots
-- [ ] No `@pierre/*` or `beautiful-mermaid` imports in `Map.tsx` / `.canvas.tsx`
-- [ ] Bun host DiffView uses `@pierre/diffs` (in `app/src/host`, not Map.tsx)
-- [ ] Bun host FileTreePanel uses `@pierre/trees` (Canvas falls back to builtin)
-- [ ] Default export is `MapView` (not `Map` — shadows `globalThis.Map`)
-- [ ] Bun sidebar/preview code shows syntax colors via pierre (Vite worker pool)
-- [ ] No clipped long text on nodes
-- [ ] No static `overflow:auto` Mermaid box
-- [ ] Built from Canvas scaffold **or** Bun `app/` template (not a from-scratch reimplementation)
-- [ ] Placeholder demo paths/nodes replaced; `--check` clean
+Ship only if all of these pass:
+
+- [ ] Placeholder demo paths/nodes replaced; `bun update.ts --check` clean
 - [ ] Host verify passes (`bun run verify` from skill `scripts/` or `bun run test:host` in map dir)
-- [ ] Extra sections (if any) only **below** the “Add more context below.” comment
-- [ ] No mandatory Gotchas / ritual footer sections
+- [ ] Built from Canvas scaffold **or** Bun `app/` template (not from-scratch chrome)
+- [ ] Default export is `MapView` (not `Map`)
+- [ ] Satisfies linked contracts: [canvas-pattern.md](canvas-pattern.md),
+  [architecture-viewport.md](architecture-viewport.md),
+  [code-preview.md](code-preview.md)

@@ -67,7 +67,7 @@ bun update.ts --file "$MAP_FILE" --check
 bun update.ts --file "$MAP_FILE" --dry-run
 ```
 
-`--canvas` is an alias for `--file`. Also: `bun sync-file-map.ts …`.
+`--canvas` is an alias for `--file`.
 
 What the script does:
 

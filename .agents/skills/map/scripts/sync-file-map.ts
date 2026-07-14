@@ -44,9 +44,15 @@ function parseArgs(argv: string[]): Opts {
   const out: Opts = { canvas: "", root: null, check: false, dryRun: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
-    if (a === "--file" || a === "--canvas") out.canvas = argv[++i]!;
-    else if (a === "--root") out.root = argv[++i]!;
-    else if (a === "--check") out.check = true;
+    if (a === "--file" || a === "--canvas") {
+      const next = argv[++i];
+      if (!next) usage();
+      out.canvas = next;
+    } else if (a === "--root") {
+      const next = argv[++i];
+      if (!next) usage();
+      out.root = next;
+    } else if (a === "--check") out.check = true;
     else if (a === "--dry-run") out.dryRun = true;
     else if (a === "-h" || a === "--help") usage(0);
     else {
@@ -107,10 +113,9 @@ async function readUtf8(abs: string): Promise<string> {
   return f.text();
 }
 
-async function buildContentsBlock(paths: string[]): Promise<string> {
-  const bodies = await Promise.all(paths.map((p) => readUtf8(p)));
-  const entries = paths.map((abs, i) => {
-    return `  [\`${abs}\`]: \`${escTemplate(bodies[i]!)}\``;
+function buildContentsBlock(paths: string[], fileText: Map<string, string>): string {
+  const entries = paths.map((abs) => {
+    return `  [\`${abs}\`]: \`${escTemplate(fileText.get(abs)!)}\``;
   });
   return [
     BEGIN_CONTENTS,
@@ -143,16 +148,15 @@ function replaceMarked(
   begin: string,
   end: string,
   block: string,
-): string {
+): string | null {
   const i = src.indexOf(begin);
   const j = src.indexOf(end);
   if (i >= 0 && j > i) {
     return src.slice(0, i) + block + src.slice(j + end.length).replace(/^\n/, "");
   }
-  return "";
+  return null;
 }
 
-/** Insert a generated block after an anchor end marker if missing. */
 function upsertMarked(
   src: string,
   begin: string,
@@ -161,7 +165,7 @@ function upsertMarked(
   afterEnd: string,
 ): string {
   const replaced = replaceMarked(src, begin, end, block);
-  if (replaced) return replaced;
+  if (replaced != null) return replaced;
   const anchor = src.indexOf(afterEnd);
   if (anchor < 0) {
     throw new Error(`Cannot insert ${begin} (missing ${afterEnd})`);
@@ -230,7 +234,7 @@ async function main() {
   const fileText = new Map(bodies);
   validateRanges(mapBody, root, fileText);
 
-  const contentsBlock = await buildContentsBlock(paths);
+  const contentsBlock = buildContentsBlock(paths, fileText);
   const pathsBlock = buildPathsBlock(paths);
 
   let next = upsertMarked(

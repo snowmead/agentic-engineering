@@ -243,8 +243,8 @@ type ControlSize = "sm" | "md" | "lg" | "small" | "medium" | "large";
 type ButtonProps = {
   variant?: ButtonVariant;
   size?: ControlSize;
-  tone?: string;
   active?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
   title?: string;
   style?: CSSProperties;
@@ -293,6 +293,7 @@ export function Button({
   variant = "secondary",
   size = "md",
   active,
+  disabled,
   onClick,
   title,
   style,
@@ -302,6 +303,7 @@ export function Button({
     <button
       type="button"
       title={title}
+      disabled={disabled}
       onClick={onClick}
       style={{
         display: "inline-flex",
@@ -309,7 +311,8 @@ export function Button({
         gap: 6,
         padding: controlPadding(size),
         borderRadius: 6,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : undefined,
         fontSize: 13,
         lineHeight: 1.2,
         ...buttonStyles(variant, active),
@@ -359,18 +362,15 @@ export function IconButton({
 
 export function Pill({
   size = "md",
-  tone,
   active,
   style,
   children,
 }: {
   size?: ControlSize;
-  tone?: string;
   active?: boolean;
   style?: CSSProperties;
   children?: ReactNode;
 }) {
-  void tone;
   return (
     <span
       style={{
@@ -397,7 +397,6 @@ type DiffViewProps = {
   language?: string;
   lines: DiffLineData[];
   showLineNumbers?: boolean;
-  coloredLineNumbers?: boolean;
   showAccentStrip?: boolean;
 };
 
@@ -427,16 +426,14 @@ function focusSelectedLines(
   return { start: Math.min(...nums), end: Math.max(...nums) };
 }
 
-/** Bun/Vite DiffView — @pierre/diffs File (Shiki via worker pool in main.tsx). */
+/** @pierre/diffs File viewer. */
 export function DiffView({
   path,
   language,
   lines,
   showLineNumbers = true,
-  coloredLineNumbers = false,
   showAccentStrip = false,
 }: DiffViewProps) {
-  void coloredLineNumbers;
   const name = fileNameFromPath(path);
   const file: FileContents = {
     name,
@@ -467,9 +464,7 @@ export function DiffView({
 
 export type FileTreePanelProps = {
   files: { relPath: string; absPath: string }[];
-  /** Relative paths highlighted from map selection. */
   selectedPaths: string[];
-  /** Relative paths highlighted from hover. */
   hoverPaths: string[];
   theme: HostTheme;
   height: number;
@@ -499,7 +494,7 @@ function syncActivePaths(model: PierreFileTreeModel, active: string[]) {
   }
 }
 
-/** Bun/Vite file tree — @pierre/trees (Canvas keeps BuiltinFileTreePanel in Map.tsx). */
+/** @pierre/trees file panel. */
 export function FileTreePanel({
   files,
   selectedPaths,

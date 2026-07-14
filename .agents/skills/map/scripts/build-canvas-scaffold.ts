@@ -33,7 +33,7 @@ Reads app/src/Map.tsx and writes scaffold.canvas.tsx
 function generate(source: string): string {
   let body = source.replace(/^\/\*\*[\s\S]*?\*\/\s*/, "");
   body = body.replace(
-    /from\s+["']\.\/host["']/,
+    /from\s+["']\.\/host["']/g,
     'from "cursor/canvas"',
   );
   if (!body.includes('from "cursor/canvas"')) {
@@ -51,7 +51,14 @@ const source = await Bun.file(sourcePath).text();
 const generated = generate(source);
 
 if (check) {
-  const current = await Bun.file(outPath).text().catch(() => "");
+  const outFile = Bun.file(outPath);
+  if (!(await outFile.exists())) {
+    console.error(
+      "scaffold.canvas.tsx is missing. Run: bun scripts/build-canvas-scaffold.ts",
+    );
+    process.exit(1);
+  }
+  const current = await outFile.text();
   if (current !== generated) {
     console.error(
       "scaffold.canvas.tsx is out of date. Run: bun scripts/build-canvas-scaffold.ts",
