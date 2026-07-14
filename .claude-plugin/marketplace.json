@@ -1,0 +1,17 @@
+{
+  "name": "agentic-engineering",
+  "owner": {
+    "name": "Michael Assaf",
+    "email": "michael@snowmead.com"
+  },
+  "metadata": {
+    "description": "Skills and tools for agentic engineering."
+  },
+  "plugins": [
+    {
+      "name": "agentic-engineering",
+      "source": "./",
+      "description": "Skills and tools for agentic engineering."
+    }
+  ]
+}

@@ -6,18 +6,61 @@ Skills follow the [Agent Skills](https://agentskills.io/) open standard (`SKILL.
 
 ## Installation
 
+### All agents
+
+Works with any host supported by the [skills CLI](https://github.com/vercel-labs/skills) (Cursor, Claude Code, Codex, Copilot, Gemini, OpenCode, Windsurf, and many more):
+
 ```bash
 bunx skills add snowmead/agentic-engineering
 ```
 
-Optional native plugins/packages (same skills, no duplication):
+Target specific agents with `-a` (repeatable), e.g. `-a cursor -a claude-code`.
 
-| Host | Packaging |
-|------|-----------|
-| Cursor | [`.cursor-plugin/`](.cursor-plugin/) |
-| Claude Code | [`.claude-plugin/`](.claude-plugin/) |
-| Codex | [`.codex-plugin/`](.codex-plugin/) |
-| Pi | [`package.json`](package.json) `pi.skills` — `pi install git:github.com/snowmead/agentic-engineering` or a local path |
+### Cursor
+
+Skills:
+
+```bash
+bunx skills add snowmead/agentic-engineering -a cursor
+```
+
+As a Cursor plugin (uses [`.cursor-plugin/`](.cursor-plugin/)):
+
+- Install from the [Cursor Marketplace](https://cursor.com/marketplace) or in-editor with `/add-plugin`
+- On Teams/Enterprise: import this GitHub repo as a [team marketplace](https://cursor.com/docs/plugins) under **Dashboard → Plugins**
+
+### Claude Code
+
+```bash
+claude plugin marketplace add snowmead/agentic-engineering
+claude plugin install agentic-engineering@agentic-engineering
+```
+
+Or from Claude chat:
+
+```text
+/plugin marketplace add snowmead/agentic-engineering
+/plugin install agentic-engineering@agentic-engineering
+```
+
+### Codex
+
+```bash
+codex plugin marketplace add snowmead/agentic-engineering
+codex plugin add agentic-engineering@agentic-engineering
+```
+
+Skills-only (no plugin marketplace):
+
+```bash
+bunx skills add snowmead/agentic-engineering -a codex
+```
+
+### Pi
+
+```bash
+pi install git:github.com/snowmead/agentic-engineering
+```
 
 ## Contents
 
@@ -25,8 +68,9 @@ Optional native plugins/packages (same skills, no duplication):
 |------|------------|
 | [`.agents/skills/`](.agents/skills/) | Agent Skills (open standard) |
 | [`.cursor-plugin/`](.cursor-plugin/) | Cursor plugin |
-| [`.claude-plugin/`](.claude-plugin/) | Claude Code plugin |
+| [`.claude-plugin/`](.claude-plugin/) | Claude Code plugin + marketplace |
 | [`.codex-plugin/`](.codex-plugin/) | Codex plugin |
+| [`.agents/plugins/`](.agents/plugins/) | Codex marketplace |
 | [`package.json`](package.json) | Pi package manifest |
 
 ### Skills
