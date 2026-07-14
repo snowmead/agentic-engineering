@@ -21,13 +21,15 @@ or React Flow.
 
 ## External UX mapping
 
-| Inspiration | Package | Canvas substitute |
-|-------------|---------|---------------------|
-| [diffs.com](https://diffs.com/) | `@pierre/diffs` | **`DiffView`** — Shiki highlighting via `path` / extension |
+| Inspiration | Package | Host DiffView |
+|-------------|---------|---------------|
+| [diffs.com](https://diffs.com/) | `@pierre/diffs` (inspiration only) | **Canvas:** Shiki via `cursor/canvas` + `path` / `language`. **Bun:** sync TS/TSX/JS tokenizer in `app/src/host` DiffView (uses `path`; not Shiki, not pierre) |
 | [trees.software](https://trees.software/) | `@pierre/trees` | **Custom `FileTree` panel** — right sidebar, hover highlight + ancestor expand |
 | [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** with `scripts/render-mermaid.mjs`; embed + hotspots |
 
-Anti-pattern: `import … from "@pierre/*"` or `beautiful-mermaid` in `.canvas.tsx`.
+Anti-pattern: `import … from "@pierre/*"` or `beautiful-mermaid` in `.canvas.tsx`
+or Bun `Map.tsx`. Do **not** `bun add @pierre/diffs` / Vite / workers to get
+syntax colors on Bun — use the shipped host `DiffView`.
 
 ## Architecture diagrams
 
@@ -355,6 +357,8 @@ function richInline(text: string): ReactNode[] {
 
 - Sidebar on the right **only** (detail belongs left; tree belongs right)
 - npm-importing `@pierre/trees`, `@pierre/diffs`, or `beautiful-mermaid` into `.canvas.tsx`
+  or the Bun map app (`bun add @pierre/diffs` under `Bun.serve` is a known dead end)
+- Naming the default export `Map` (shadows `globalThis.Map` → stack overflow)
 - Hand-drawn architecture boxes when Mermaid would be clearer — pre-render instead
 - Architecture diagrams with no hotspots / no link to map focus
 - **Static / scroll-only Mermaid** (`overflow: auto` + `width="100%"`) — must use the architecture viewport contract
@@ -363,7 +367,7 @@ function richInline(text: string): ReactNode[] {
 - Fixed sidebar width with unreadably small/large type when resized
 - Tight gaps / labels overlapping nodes
 - Edges that are decoration only (no body/files)
-- Plain `<pre>` code in the sidebar (no language coloring — use `DiffView`)
+- Plain `<pre>` code in the sidebar (no language coloring — use host `DiffView` with `path`)
 - Code link → IDE only (must open in-canvas preview first)
 - Preview shows excerpt only / missing `FILE_CONTENTS` embeds
 - Long copy on node cards

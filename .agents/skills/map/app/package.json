@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun ./src/server.ts",
-    "build:check": "bun ../scripts/build-canvas-scaffold.ts --check"
+    "build:check": "bun ../scripts/build-canvas-scaffold.ts --check",
+    "test:host": "bun ./verify-host.ts"
   },
   "dependencies": {
     "react": "^19.1.0",

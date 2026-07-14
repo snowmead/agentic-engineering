@@ -88,6 +88,15 @@ What the script does:
 | Diagonal-arrow `IconButton` in modal header | `dispatch({ type: "openFile", path, selection })` |
 | Backdrop click / Close / Escape | Dismiss modal |
 
+**DiffView highlighting:** always pass `path={file.path}` (extension drives language).
+
+| Host | Coloring |
+|------|----------|
+| Cursor Canvas (`cursor/canvas`) | Shiki via `path` / optional `language` |
+| Bun (`app/src/host`) | Sync TS/TSX/JS tokenizer in host DiffView (same `path` prop; not Shiki / not `@pierre/diffs`) |
+
+`FILE_CONTENTS` stays plain text; highlighting is a host concern only.
+
 Help affordance: path label shows `path:line` or `path:start-end`.
 
 ## FileRef (shape inside FILE_MAP)

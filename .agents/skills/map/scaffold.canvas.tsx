@@ -1403,7 +1403,7 @@ function ArchitecturePanel({
     </Stack>
   );
 }
-export default function Map() {
+export default function MapView() {
   const theme = useHostTheme();
   const dispatch = useCanvasAction();
   const [focus, setFocus] = useCanvasState<Focus>("focus", {

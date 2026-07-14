@@ -6,7 +6,8 @@
     "update": "bun update.ts",
     "sync-file-map": "bun sync-file-map.ts",
     "render-mermaid": "bun render-mermaid.mjs",
-    "build-canvas": "bun build-canvas-scaffold.ts"
+    "build-canvas": "bun build-canvas-scaffold.ts",
+    "verify": "bun verify-host.ts"
   },
   "dependencies": {
     "beautiful-mermaid": "^1.1.3"
