@@ -93,7 +93,7 @@ What the script does:
 | Host | Coloring |
 |------|----------|
 | Cursor Canvas (`cursor/canvas`) | Shiki via `path` / optional `language` |
-| Bun (`app/src/host`) | Sync TS/TSX/JS tokenizer in host DiffView (same `path` prop; not Shiki / not `@pierre/diffs`) |
+| Bun (`app/src/host`, Vite) | `@pierre/diffs` `File` (Shiki via worker pool in `main.tsx`; same `path` prop) |
 
 `FILE_CONTENTS` stays plain text; highlighting is a host concern only.
 

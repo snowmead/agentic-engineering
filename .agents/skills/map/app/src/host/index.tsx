@@ -5,6 +5,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import type { FileContents, SelectedLineRange } from "@pierre/diffs";
+import { File as PierreFile } from "@pierre/diffs/react";
 
 export type HostTheme = {
   bg: {
@@ -392,278 +394,33 @@ type DiffViewProps = {
   showAccentStrip?: boolean;
 };
 
-const LINE_BG: Record<DiffLineData["type"], string> = {
-  added: "rgba(55, 148, 255, 0.12)",
-  removed: "rgba(244, 71, 71, 0.12)",
-  unchanged: "transparent",
-  modified: "rgba(200, 160, 40, 0.12)",
-};
-
-const ACCENT: Record<DiffLineData["type"], string> = {
-  added: HOST_THEME.accent.primary,
-  removed: "#f44747",
-  unchanged: "transparent",
-  modified: "#c8a028",
-};
-
-/** VS Code Dark+ palette for Bun host DiffView (no Shiki / pierre). */
-const SYNTAX = {
-  comment: "#6A9955",
-  string: "#CE9178",
-  keyword: "#569CD6",
-  constant: "#4FC1FF",
-  number: "#B5CEA8",
-  type: "#4EC9B0",
-  default: HOST_THEME.text.primary,
-} as const;
-
-type SyntaxKind = keyof typeof SYNTAX;
-
-type Token = { text: string; kind: SyntaxKind };
-
-const TS_KEYWORDS = new Set([
-  "abstract",
-  "as",
-  "async",
-  "await",
-  "break",
-  "case",
-  "catch",
-  "class",
-  "const",
-  "continue",
-  "debugger",
-  "default",
-  "delete",
-  "do",
-  "else",
-  "enum",
-  "export",
-  "extends",
-  "false",
-  "finally",
-  "for",
-  "from",
-  "function",
-  "get",
-  "if",
-  "implements",
-  "import",
-  "in",
-  "instanceof",
-  "interface",
-  "let",
-  "new",
-  "null",
-  "of",
-  "package",
-  "private",
-  "protected",
-  "public",
-  "return",
-  "set",
-  "static",
-  "super",
-  "switch",
-  "this",
-  "throw",
-  "true",
-  "try",
-  "typeof",
-  "undefined",
-  "var",
-  "void",
-  "while",
-  "with",
-  "yield",
-  "type",
-  "keyof",
-  "infer",
-  "readonly",
-  "declare",
-  "namespace",
-  "module",
-  "satisfies",
-  "override",
-]);
-
-const TS_TYPES = new Set([
-  "any",
-  "boolean",
-  "number",
-  "string",
-  "symbol",
-  "bigint",
-  "object",
-  "unknown",
-  "never",
-  "Promise",
-  "Array",
-  "Record",
-  "Partial",
-  "Required",
-  "Readonly",
-  "Pick",
-  "Omit",
-  "Map",
-  "Set",
-  "Date",
-  "Error",
-  "ReactNode",
-  "CSSProperties",
-]);
-
-function extOf(path: string | undefined): string {
-  if (!path) return "";
-  const base = path.split(/[/\\]/).pop() ?? path;
-  const i = base.lastIndexOf(".");
-  return i >= 0 ? base.slice(i + 1).toLowerCase() : "";
+function fileNameFromPath(path: string | undefined): string {
+  if (!path) return "file.txt";
+  const base = path.split(/[/\\]/).pop();
+  return base && base.length > 0 ? base : path;
 }
 
-function resolveLang(
-  path: string | undefined,
-  language: string | undefined,
-): "ts" | "plain" {
-  const lang = (language ?? "").toLowerCase();
-  if (
-    lang === "ts" ||
-    lang === "tsx" ||
-    lang === "js" ||
-    lang === "jsx" ||
-    lang === "typescript" ||
-    lang === "javascript"
-  ) {
-    return "ts";
-  }
-  const ext = extOf(path);
-  if (ext === "ts" || ext === "tsx" || ext === "js" || ext === "jsx" || ext === "mjs" || ext === "cjs") {
-    return "ts";
-  }
-  return "plain";
+function linesToContents(lines: DiffLineData[]): string {
+  return lines.map((l) => l.content).join("\n");
 }
 
-/** Sync dependency-free TS/TSX/JS tokenizer (comment/string/keyword/constant/number/type). */
-export function tokenizeLine(line: string, lang: "ts" | "plain"): Token[] {
-  if (lang === "plain" || !line) {
-    return line ? [{ text: line, kind: "default" }] : [];
-  }
-
-  const tokens: Token[] = [];
-  let i = 0;
-  const n = line.length;
-
-  const push = (text: string, kind: SyntaxKind) => {
-    if (text) tokens.push({ text, kind });
-  };
-
-  while (i < n) {
-    // line comment
-    if (line[i] === "/" && line[i + 1] === "/") {
-      push(line.slice(i), "comment");
-      break;
-    }
-    // block comment remnant on this line
-    if (line[i] === "/" && line[i + 1] === "*") {
-      const end = line.indexOf("*/", i + 2);
-      if (end < 0) {
-        push(line.slice(i), "comment");
-        break;
-      }
-      push(line.slice(i, end + 2), "comment");
-      i = end + 2;
-      continue;
-    }
-    // string / template
-    if (line[i] === "'" || line[i] === '"' || line[i] === "`") {
-      const quote = line[i]!;
-      let j = i + 1;
-      while (j < n) {
-        if (line[j] === "\\") {
-          j += 2;
-          continue;
-        }
-        if (line[j] === quote) {
-          j++;
-          break;
-        }
-        j++;
-      }
-      push(line.slice(i, j), "string");
-      i = j;
-      continue;
-    }
-    // number
-    if (
-      /[0-9]/.test(line[i]!) ||
-      (line[i] === "." && i + 1 < n && /[0-9]/.test(line[i + 1]!))
-    ) {
-      let j = i;
-      if (line[j] === "0" && (line[j + 1] === "x" || line[j + 1] === "X")) {
-        j += 2;
-        while (j < n && /[0-9a-fA-F_]/.test(line[j]!)) j++;
-      } else {
-        while (j < n && /[0-9_]/.test(line[j]!)) j++;
-        if (line[j] === ".") {
-          j++;
-          while (j < n && /[0-9_]/.test(line[j]!)) j++;
-        }
-        if (line[j] === "e" || line[j] === "E") {
-          j++;
-          if (line[j] === "+" || line[j] === "-") j++;
-          while (j < n && /[0-9_]/.test(line[j]!)) j++;
-        }
-        if (line[j] === "n") j++;
-      }
-      push(line.slice(i, j), "number");
-      i = j;
-      continue;
-    }
-    // identifier / keyword / type / constant
-    if (/[A-Za-z_$]/.test(line[i]!)) {
-      let j = i + 1;
-      while (j < n && /[A-Za-z0-9_$]/.test(line[j]!)) j++;
-      const word = line.slice(i, j);
-      let kind: SyntaxKind = "default";
-      if (TS_KEYWORDS.has(word) || word === "true" || word === "false" || word === "null" || word === "undefined") {
-        kind = word === "true" || word === "false" || word === "null" || word === "undefined"
-          ? "constant"
-          : "keyword";
-      } else if (TS_TYPES.has(word) || /^[A-Z][A-Za-z0-9_]*$/.test(word)) {
-        kind = "type";
-      } else if (word === word.toUpperCase() && /[A-Z]/.test(word) && word.length > 1) {
-        kind = "constant";
-      }
-      push(word, kind);
-      i = j;
-      continue;
-    }
-    // punctuation / whitespace — one char at a time (merge runs of same default)
-    let j = i + 1;
-    while (
-      j < n &&
-      !/[A-Za-z0-9_$'"`/]/.test(line[j]!) &&
-      !(line[j] === "." && j + 1 < n && /[0-9]/.test(line[j + 1]!))
-    ) {
-      if (line[j] === "/" && (line[j + 1] === "/" || line[j + 1] === "*")) break;
-      j++;
-    }
-    push(line.slice(i, j), "default");
-    i = j;
-  }
-
-  return tokens;
+function focusSelectedLines(
+  lines: DiffLineData[],
+): SelectedLineRange | undefined {
+  const focused = lines
+    .map((line, i) => ({ line, i }))
+    .filter(
+      ({ line }) =>
+        line.type === "added" ||
+        line.type === "removed" ||
+        line.type === "modified",
+    );
+  if (focused.length === 0) return undefined;
+  const nums = focused.map(({ line, i }) => line.lineNumber ?? i + 1);
+  return { start: Math.min(...nums), end: Math.max(...nums) };
 }
 
-function highlightLine(content: string, lang: "ts" | "plain"): ReactNode {
-  if (!content) return " ";
-  const tokens = tokenizeLine(content, lang);
-  return tokens.map((t, idx) => (
-    <span key={idx} style={{ color: SYNTAX[t.kind] }}>
-      {t.text}
-    </span>
-  ));
-}
-
+/** Bun/Vite DiffView — @pierre/diffs File (Shiki via worker pool in main.tsx). */
 export function DiffView({
   path,
   language,
@@ -673,60 +430,31 @@ export function DiffView({
   showAccentStrip = false,
 }: DiffViewProps) {
   void coloredLineNumbers;
-  const lang = resolveLang(path, language);
+  const name = fileNameFromPath(path);
+  const file: FileContents = {
+    name,
+    contents: linesToContents(lines),
+    ...(language ? { lang: language as FileContents["lang"] } : {}),
+  };
+  const selectedLines = showAccentStrip
+    ? focusSelectedLines(lines)
+    : undefined;
+
   return (
-    <pre
+    <PierreFile
+      file={file}
+      selectedLines={selectedLines}
+      options={{
+        disableLineNumbers: !showLineNumbers,
+        disableFileHeader: true,
+        overflow: "scroll",
+      }}
       style={{
-        margin: 0,
-        padding: "8px 0",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         fontSize: 12,
         lineHeight: 1.45,
-        color: HOST_THEME.text.primary,
-        overflow: "auto",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
       }}
-    >
-      <table style={{ borderCollapse: "collapse", width: "100%" }}>
-        <tbody>
-          {lines.map((line, i) => (
-            <tr key={i} style={{ background: LINE_BG[line.type] }}>
-              {showAccentStrip ? (
-                <td
-                  style={{
-                    width: 3,
-                    background: ACCENT[line.type],
-                    padding: 0,
-                  }}
-                />
-              ) : null}
-              {showLineNumbers ? (
-                <td
-                  style={{
-                    padding: "0 10px 0 12px",
-                    textAlign: "right",
-                    color: HOST_THEME.text.tertiary,
-                    userSelect: "none",
-                    whiteSpace: "nowrap",
-                    verticalAlign: "top",
-                  }}
-                >
-                  {line.lineNumber ?? i + 1}
-                </td>
-              ) : null}
-              <td
-                style={{
-                  padding: "0 12px 0 8px",
-                  whiteSpace: "pre",
-                  verticalAlign: "top",
-                }}
-              >
-                {highlightLine(line.content, lang)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </pre>
+    />
   );
 }
 

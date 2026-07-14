@@ -17,19 +17,21 @@ three-column map. After the `Add more context below.` comment, agents may add
 optional ad-hoc sections; do not bake in a required “Gotchas” section.
 
 **Do not** npm-import `@pierre/trees`, `@pierre/diffs`, `beautiful-mermaid`,
-or React Flow.
+or React Flow into `.canvas.tsx` or Bun `Map.tsx`. Bun pierre DiffView stays in
+`app/src/host` (Vite).
 
 ## External UX mapping
 
 | Inspiration | Package | Host DiffView |
 |-------------|---------|---------------|
-| [diffs.com](https://diffs.com/) | `@pierre/diffs` (inspiration only) | **Canvas:** Shiki via `cursor/canvas` + `path` / `language`. **Bun:** sync TS/TSX/JS tokenizer in `app/src/host` DiffView (uses `path`; not Shiki, not pierre) |
+| [diffs.com](https://diffs.com/) | `@pierre/diffs` | **Canvas:** Shiki via `cursor/canvas` + `path` / `language`. **Bun/Vite:** `@pierre/diffs` `File` in `app/src/host` (worker pool via `?worker&url` in `main.tsx`) |
 | [trees.software](https://trees.software/) | `@pierre/trees` | **Custom `FileTree` panel** — right sidebar, hover highlight + ancestor expand |
 | [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** with `scripts/render-mermaid.mjs`; embed + hotspots |
 
 Anti-pattern: `import … from "@pierre/*"` or `beautiful-mermaid` in `.canvas.tsx`
-or Bun `Map.tsx`. Do **not** `bun add @pierre/diffs` / Vite / workers to get
-syntax colors on Bun — use the shipped host `DiffView`.
+or Bun `Map.tsx`. Pierre belongs only in the Bun **host** (`app/src/host` +
+`main.tsx` worker pool). Do not use `Bun.serve` HTML for the map app — Vite is
+required for workers.
 
 ## Architecture diagrams
 
@@ -357,7 +359,8 @@ function richInline(text: string): ReactNode[] {
 
 - Sidebar on the right **only** (detail belongs left; tree belongs right)
 - npm-importing `@pierre/trees`, `@pierre/diffs`, or `beautiful-mermaid` into `.canvas.tsx`
-  or the Bun map app (`bun add @pierre/diffs` under `Bun.serve` is a known dead end)
+  or Bun `Map.tsx` (pierre DiffView belongs in `app/src/host` only)
+- Serving the Bun map with `Bun.serve` HTML instead of Vite (breaks pierre workers)
 - Naming the default export `Map` (shadows `globalThis.Map` → stack overflow)
 - Hand-drawn architecture boxes when Mermaid would be clearer — pre-render instead
 - Architecture diagrams with no hotspots / no link to map focus

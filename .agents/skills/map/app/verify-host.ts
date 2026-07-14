@@ -1,20 +1,22 @@
 #!/usr/bin/env bun
 /**
- * Smoke-test Bun map host templates (run from app/ so React resolves).
+ * Smoke-test Vite + @pierre/diffs Bun map host.
  *
  *   bun verify-host.ts          # from app/
  *   bun run test:host           # from app/
- *   bun run verify              # from scripts/ → re-execs here
+ *   bun run verify              # from scripts/
  */
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import MapView from "./src/Map";
-import { DiffView, tokenizeLine } from "./src/host";
 
 const appRoot = import.meta.dir;
 const skillRoot = resolve(appRoot, "..");
 const mapPath = resolve(appRoot, "src/Map.tsx");
+const hostPath = resolve(appRoot, "src/host/index.tsx");
+const mainPath = resolve(appRoot, "src/main.tsx");
+const workerFactoryPath = resolve(appRoot, "src/workerFactory.ts");
 
 function fail(msg: string): never {
   console.error(`verify-host: FAIL — ${msg}`);
@@ -25,7 +27,7 @@ function ok(msg: string) {
   console.log(`verify-host: ok — ${msg}`);
 }
 
-// 1. Static: default export must not be named Map (shadows globalThis.Map)
+// 1. Static: default export must not be named Map
 const mapSrc = await Bun.file(mapPath).text();
 if (/export\s+default\s+function\s+Map\s*\(/.test(mapSrc)) {
   fail(`${mapPath} exports default function Map() — rename to MapView`);
@@ -35,7 +37,27 @@ if (!/export\s+default\s+function\s+MapView\s*\(/.test(mapSrc)) {
 }
 ok("Map.tsx default export is MapView (no Map shadow)");
 
-// 2. SSR MapView — must not stack-overflow
+// 2. Host uses @pierre/diffs; main wires worker pool
+const hostSrc = await Bun.file(hostPath).text();
+if (!hostSrc.includes("@pierre/diffs/react") || !hostSrc.includes("PierreFile")) {
+  fail("host DiffView must use @pierre/diffs File (PierreFile)");
+}
+if (hostSrc.includes("tokenizeLine") || hostSrc.includes("VS Code Dark+")) {
+  fail("host still has DIY tokenizer — remove it");
+}
+ok("host DiffView uses @pierre/diffs");
+
+const mainSrc = await Bun.file(mainPath).text();
+if (!mainSrc.includes("WorkerPoolContextProvider")) {
+  fail("main.tsx must wrap MapView in WorkerPoolContextProvider");
+}
+const workerSrc = await Bun.file(workerFactoryPath).text();
+if (!workerSrc.includes("?worker&url")) {
+  fail("workerFactory must use Vite ?worker&url import");
+}
+ok("Vite worker pool wired in main.tsx");
+
+// 3. SSR MapView — must not stack-overflow
 let html: string;
 try {
   html = renderToStaticMarkup(createElement(MapView));
@@ -47,43 +69,24 @@ if (html.length < 1000) {
 }
 ok(`MapView SSR (${html.length} chars)`);
 
-// 3. DiffView syntax colors (tokenizer)
-const fixtureLines = [
-  "const n: Promise<number> = 42;",
-  "// a comment",
-  'const s = "hello";',
-];
-const kinds = new Set(
-  fixtureLines.flatMap((line) =>
-    tokenizeLine(line, "ts").map((t) => t.kind),
-  ),
-);
-for (const need of ["comment", "string", "keyword", "number", "type"] as const) {
-  if (!kinds.has(need)) fail(`tokenizer missing kind: ${need}`);
+// 4. Vite build emits worker chunk
+const build = Bun.spawnSync({
+  cmd: ["bun", "run", "build"],
+  cwd: appRoot,
+  stdout: "pipe",
+  stderr: "pipe",
+});
+if (build.exitCode !== 0) {
+  fail(`vite build failed:\n${build.stderr.toString()}`);
 }
-ok(`tokenizer kinds: ${[...kinds].sort().join(", ")}`);
-
-const diffHtml = renderToStaticMarkup(
-  createElement(DiffView, {
-    path: "src/example.ts",
-    lines: fixtureLines.map((content, i) => ({
-      type: "unchanged" as const,
-      content,
-      lineNumber: i + 1,
-    })),
-  }),
-);
-const colors = new Set(
-  [...diffHtml.matchAll(/color:\s*(#[0-9A-Fa-f]{3,8})/g)].map((m) => m[1]!),
-);
-if (colors.size < 5) {
-  fail(
-    `DiffView expected ≥5 distinct colors, got ${colors.size}: ${[...colors].join(", ")}`,
-  );
+const distAssets = resolve(appRoot, "dist/assets");
+const assets = [...new Bun.Glob("worker-*.js").scanSync({ cwd: distAssets })];
+if (assets.length === 0) {
+  fail("vite build did not emit worker-*.js (pierre worker pool broken)");
 }
-ok(`DiffView colors (${colors.size}): ${[...colors].join(", ")}`);
+ok(`vite build emitted worker chunk: ${assets[0]}`);
 
-// 4. Scaffold in sync
+// 5. Scaffold in sync
 const check = Bun.spawnSync({
   cmd: ["bun", resolve(skillRoot, "scripts/build-canvas-scaffold.ts"), "--check"],
   cwd: skillRoot,

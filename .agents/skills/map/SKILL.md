@@ -64,7 +64,7 @@ cp -R "$SKILL_DIR/app" "<repo>/maps/<descriptive-name>"
 MAP_FILE="<repo>/maps/<descriptive-name>/src/Map.tsx"
 ```
 
-Then from that map dir: `bun install && bun run dev` → open the printed URL.
+Then from that map dir: `bun install && bun run dev` → Vite on http://localhost:5173.
 Before shipping a Bun map, also run host verify (from skill scripts or the map
 dir — see Quality bar).
 
@@ -95,8 +95,8 @@ bun run verify
 # or from the copied map dir: bun run test:host
 ```
 
-`verify` checks MapView naming (no `Map` shadow), SSR render, Bun DiffView
-syntax colors, and scaffold sync.
+`verify` checks MapView naming (no `Map` shadow), SSR render, Vite worker
+chunk emission, pierre DiffView wiring, and scaffold sync.
 7. **Optional depth (after the React Flow section only).** The map ends the
    durable UI with a comment `Add more context below.` Agents **may** insert
    extra sections after that comment when they help the reader. Nothing there is
@@ -116,10 +116,9 @@ sidebars, tree, or preview from prose alone.
 
 **Canvas constraint:** import **only** from `cursor/canvas` (+ React hooks/types)
 in `.canvas.tsx`. **Bun app:** use `app/src/host` polyfills (already wired). Do
-**not** npm-import `@pierre/trees`, `@pierre/diffs`, `beautiful-mermaid` into the
-map UI module. Do **not** add `@pierre/diffs` to the Bun `app/` `package.json`
-(workers / custom elements fail under `Bun.serve` — use the shipped host
-`DiffView` tokenizer instead).
+**not** npm-import `@pierre/trees`, `@pierre/diffs`, or `beautiful-mermaid` into
+`Map.tsx` / `.canvas.tsx` — Bun highlighting lives in `app/src/host` via
+`@pierre/diffs` (Vite worker pool in `main.tsx`).
 
 Default export in `Map.tsx` must be named **`MapView`** (never `Map` — that
 shadows `globalThis.Map` and stack-overflows on load).
@@ -154,17 +153,18 @@ registry lookup), not just the hop name — with real code snippets.
 
 ## External UX mapping
 
-Do **not** import Pierre npm packages or `beautiful-mermaid` into the map UI.
-Reproduce the UX with host primitives:
+Do **not** import Pierre / Mermaid into `Map.tsx` or `.canvas.tsx`. Hosts own
+DiffView:
 
 | Inspiration | Package | Primitive |
 |-------------|---------|-----------|
-| [diffs.com](https://diffs.com/) | `@pierre/diffs` | **`DiffView`** — Canvas: Shiki via `cursor/canvas` + `path`; Bun: sync tokenizer in `app/src/host` (not pierre) |
+| [diffs.com](https://diffs.com/) | `@pierre/diffs` | **`DiffView`** — Canvas: Shiki via `cursor/canvas` + `path`; Bun/Vite: `@pierre/diffs` `File` in `app/src/host` (worker pool in `main.tsx`) |
 | [trees.software](https://trees.software/) | `@pierre/trees` | **Custom `FileTree` panel** — right sidebar, hover highlight + auto-expand |
 | [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** via `scripts/render-mermaid.mjs`, embed + hotspot interactivity |
 
-Do **not** install `@pierre/diffs`, add Vite, or invent a highlighter to “get
-Shiki” on Bun — the host polyfill already colors TS/TSX/JS from `path`.
+Bun map apps use **Vite** (`bun run dev` → `vite`). Do not revert to
+`Bun.serve` HTML for the map UI — pierre workers need Vite’s `?worker&url`.
+Do not invent a DIY highlighter in `Map.tsx`.
 
 ## Architecture diagrams (beautiful-mermaid)
 
@@ -267,10 +267,10 @@ bun update.ts --file "$MAP_FILE" --check
 - [ ] Architecture hotspot clicks work under pointer capture
 - [ ] Architecture selection highlight + pointer cursor on hotspots
 - [ ] Architecture section uses beautiful-mermaid SVGs + hotspots
-- [ ] No `@pierre/*` or `beautiful-mermaid` imports in map UI
-- [ ] No `@pierre/*` in Bun map `package.json` (host DiffView only)
+- [ ] No `@pierre/*` or `beautiful-mermaid` imports in `Map.tsx` / `.canvas.tsx`
+- [ ] Bun host DiffView uses `@pierre/diffs` (in `app/src/host`, not Map.tsx)
 - [ ] Default export is `MapView` (not `Map` — shadows `globalThis.Map`)
-- [ ] Bun sidebar/preview code shows syntax colors (not flat white)
+- [ ] Bun sidebar/preview code shows syntax colors via pierre (Vite worker pool)
 - [ ] No clipped long text on nodes
 - [ ] No static `overflow:auto` Mermaid box
 - [ ] Built from Canvas scaffold **or** Bun `app/` template (not a from-scratch reimplementation)
