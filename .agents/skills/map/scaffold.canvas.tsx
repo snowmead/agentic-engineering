@@ -21,6 +21,7 @@ import {
   useHostTheme,
   type DiffLineData,
 } from "cursor/canvas";
+import * as MapHost from "./host";
 import {
   useEffect,
   useMemo,
@@ -941,8 +942,8 @@ function renderTreeDir(
   });
 }
 
-function FileTreePanel({
-  tree,
+function BuiltinFileTreePanel({
+  files,
   selectedPaths,
   hoverPaths,
   theme,
@@ -950,7 +951,7 @@ function FileTreePanel({
   width,
   previewFile,
 }: {
-  tree: TreeDir;
+  files: { relPath: string; absPath: string }[];
   selectedPaths: string[];
   hoverPaths: string[];
   theme: ReturnType<typeof useHostTheme>;
@@ -958,6 +959,7 @@ function FileTreePanel({
   width: number;
   previewFile: (ref: FileRef) => void;
 }) {
+  const tree = buildTree(files.map((f) => f.absPath));
   const totalFiles = countFiles(tree);
 
   return (
@@ -1000,6 +1002,21 @@ function FileTreePanel({
       </div>
     </aside>
   );
+}
+
+function FileTreePanel(props: {
+  files: { relPath: string; absPath: string }[];
+  selectedPaths: string[];
+  hoverPaths: string[];
+  theme: ReturnType<typeof useHostTheme>;
+  height: number;
+  width: number;
+  previewFile: (ref: FileRef) => void;
+}) {
+  const HostTree = (MapHost as { FileTreePanel?: typeof BuiltinFileTreePanel })
+    .FileTreePanel;
+  if (HostTree) return <HostTree {...props} />;
+  return <BuiltinFileTreePanel {...props} />;
 }
 
 function resolveHotspotEntity(h: ArchHotspot): { files: FileRef[]; body: DocBlock[] } | null {
@@ -1441,8 +1458,12 @@ export default function MapView() {
   const [hoverPaths, setHoverPaths] = useState<string[]>([]);
   const [filePreview, setFilePreview] = useState<FileRef | null>(null);
 
-  const fileTree = useMemo(
-    () => buildTree(collectAllMapPaths()),
+  const mapFiles = useMemo(
+    () =>
+      collectAllMapPaths().map((absPath) => ({
+        absPath,
+        relPath: relPath(absPath),
+      })),
     [],
   );
 
@@ -2140,7 +2161,7 @@ export default function MapView() {
               />
             </div>
             <FileTreePanel
-              tree={fileTree}
+              files={mapFiles}
               selectedPaths={selectedPaths}
               hoverPaths={hoverPaths}
               theme={theme}

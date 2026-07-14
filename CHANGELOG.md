@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-07-14
+
+- **map:** Bun/Vite host `FileTreePanel` uses `@pierre/trees` (Canvas keeps builtin fallback in Map.tsx)
+
 ## 0.1.2 — 2026-07-14
 
 - **map:** Bun host migrated from `Bun.serve` HTML to **Vite** so `@pierre/diffs` workers emit correctly

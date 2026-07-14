@@ -117,8 +117,8 @@ sidebars, tree, or preview from prose alone.
 **Canvas constraint:** import **only** from `cursor/canvas` (+ React hooks/types)
 in `.canvas.tsx`. **Bun app:** use `app/src/host` polyfills (already wired). Do
 **not** npm-import `@pierre/trees`, `@pierre/diffs`, or `beautiful-mermaid` into
-`Map.tsx` / `.canvas.tsx` — Bun highlighting lives in `app/src/host` via
-`@pierre/diffs` (Vite worker pool in `main.tsx`).
+`Map.tsx` / `.canvas.tsx` — Bun highlighting + tree live in `app/src/host` via
+`@pierre/diffs` / `@pierre/trees` (Vite).
 
 Default export in `Map.tsx` must be named **`MapView`** (never `Map` — that
 shadows `globalThis.Map` and stack-overflows on load).
@@ -159,7 +159,7 @@ DiffView:
 | Inspiration | Package | Primitive |
 |-------------|---------|-----------|
 | [diffs.com](https://diffs.com/) | `@pierre/diffs` | **`DiffView`** — Canvas: Shiki via `cursor/canvas` + `path`; Bun/Vite: `@pierre/diffs` `File` in `app/src/host` (worker pool in `main.tsx`) |
-| [trees.software](https://trees.software/) | `@pierre/trees` | **Custom `FileTree` panel** — right sidebar, hover highlight + auto-expand |
+| [trees.software](https://trees.software/) | `@pierre/trees` | **File tree** — Canvas: builtin panel in `Map.tsx`; Bun/Vite: `@pierre/trees` in `app/src/host` `FileTreePanel` |
 | [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** via `scripts/render-mermaid.mjs`, embed + hotspot interactivity |
 
 Bun map apps use **Vite** (`bun run dev` → `vite`). Do not revert to
@@ -269,6 +269,7 @@ bun update.ts --file "$MAP_FILE" --check
 - [ ] Architecture section uses beautiful-mermaid SVGs + hotspots
 - [ ] No `@pierre/*` or `beautiful-mermaid` imports in `Map.tsx` / `.canvas.tsx`
 - [ ] Bun host DiffView uses `@pierre/diffs` (in `app/src/host`, not Map.tsx)
+- [ ] Bun host FileTreePanel uses `@pierre/trees` (Canvas falls back to builtin)
 - [ ] Default export is `MapView` (not `Map` — shadows `globalThis.Map`)
 - [ ] Bun sidebar/preview code shows syntax colors via pierre (Vite worker pool)
 - [ ] No clipped long text on nodes

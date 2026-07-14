@@ -25,13 +25,13 @@ or React Flow into `.canvas.tsx` or Bun `Map.tsx`. Bun pierre DiffView stays in
 | Inspiration | Package | Host DiffView |
 |-------------|---------|---------------|
 | [diffs.com](https://diffs.com/) | `@pierre/diffs` | **Canvas:** Shiki via `cursor/canvas` + `path` / `language`. **Bun/Vite:** `@pierre/diffs` `File` in `app/src/host` (worker pool via `?worker&url` in `main.tsx`) |
-| [trees.software](https://trees.software/) | `@pierre/trees` | **Custom `FileTree` panel** — right sidebar, hover highlight + ancestor expand |
+| [trees.software](https://trees.software/) | `@pierre/trees` | **Canvas:** builtin `FileTreePanel` in Map.tsx. **Bun/Vite:** `@pierre/trees` in `app/src/host` `FileTreePanel` |
 | [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** with `scripts/render-mermaid.mjs`; embed + hotspots |
 
 Anti-pattern: `import … from "@pierre/*"` or `beautiful-mermaid` in `.canvas.tsx`
 or Bun `Map.tsx`. Pierre belongs only in the Bun **host** (`app/src/host` +
-`main.tsx` worker pool). Do not use `Bun.serve` HTML for the map app — Vite is
-required for workers.
+diffs worker pool in `main.tsx`). Do not use `Bun.serve` HTML for the map app —
+Vite is required for diffs workers.
 
 ## Architecture diagrams
 

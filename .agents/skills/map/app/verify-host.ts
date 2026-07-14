@@ -46,6 +46,10 @@ if (hostSrc.includes("tokenizeLine") || hostSrc.includes("VS Code Dark+")) {
   fail("host still has DIY tokenizer — remove it");
 }
 ok("host DiffView uses @pierre/diffs");
+if (!hostSrc.includes("@pierre/trees/react") || !hostSrc.includes("FileTreePanel")) {
+  fail("host must export FileTreePanel using @pierre/trees");
+}
+ok("host FileTreePanel uses @pierre/trees");
 
 const mainSrc = await Bun.file(mainPath).text();
 if (!mainSrc.includes("WorkerPoolContextProvider")) {

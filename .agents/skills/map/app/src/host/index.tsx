@@ -1,12 +1,19 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
 import type { FileContents, SelectedLineRange } from "@pierre/diffs";
 import { File as PierreFile } from "@pierre/diffs/react";
+import type { FileTree as PierreFileTreeModel } from "@pierre/trees";
+import {
+  FileTree as PierreFileTreeView,
+  useFileTree,
+} from "@pierre/trees/react";
 
 export type HostTheme = {
   bg: {
@@ -455,6 +462,141 @@ export function DiffView({
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
       }}
     />
+  );
+}
+
+export type FileTreePanelProps = {
+  files: { relPath: string; absPath: string }[];
+  /** Relative paths highlighted from map selection. */
+  selectedPaths: string[];
+  /** Relative paths highlighted from hover. */
+  hoverPaths: string[];
+  theme: HostTheme;
+  height: number;
+  width: number;
+  previewFile: (ref: { path: string }) => void;
+};
+
+function expandAncestors(model: PierreFileTreeModel, filePath: string) {
+  const parts = filePath.split("/");
+  let acc = "";
+  for (let i = 0; i < parts.length - 1; i++) {
+    acc = acc ? `${acc}/${parts[i]}` : parts[i]!;
+    const item = model.getItem(acc);
+    if (item?.isDirectory()) item.expand();
+  }
+}
+
+function syncActivePaths(model: PierreFileTreeModel, active: string[]) {
+  const prev = new Set(model.getSelectedPaths());
+  const next = new Set(active);
+  for (const p of prev) {
+    if (!next.has(p)) model.getItem(p)?.deselect();
+  }
+  for (const p of next) {
+    expandAncestors(model, p);
+    model.getItem(p)?.select();
+  }
+}
+
+/** Bun/Vite file tree — @pierre/trees (Canvas keeps BuiltinFileTreePanel in Map.tsx). */
+export function FileTreePanel({
+  files,
+  selectedPaths,
+  hoverPaths,
+  theme,
+  height,
+  width,
+  previewFile,
+}: FileTreePanelProps) {
+  const relPaths = useMemo(() => files.map((f) => f.relPath), [files]);
+  const absByRel = useMemo(() => {
+    const m = new globalThis.Map<string, string>();
+    for (const f of files) m.set(f.relPath, f.absPath);
+    return m;
+  }, [files]);
+
+  const syncingRef = useRef(false);
+
+  const { model } = useFileTree({
+    paths: relPaths,
+    initialExpansion: "closed",
+    search: false,
+    icons: "minimal",
+    onSelectionChange: (selected) => {
+      if (syncingRef.current) return;
+      for (let i = selected.length - 1; i >= 0; i--) {
+        const p = selected[i]!;
+        const item = model.getItem(p);
+        if (item && !item.isDirectory()) {
+          const abs = absByRel.get(p);
+          if (abs) previewFile({ path: abs });
+          return;
+        }
+      }
+    },
+  });
+
+  const active = useMemo(
+    () => [...new Set([...selectedPaths, ...hoverPaths])],
+    [selectedPaths, hoverPaths],
+  );
+
+  useEffect(() => {
+    model.resetPaths(relPaths);
+  }, [model, relPaths]);
+
+  useEffect(() => {
+    syncingRef.current = true;
+    syncActivePaths(model, active);
+    syncingRef.current = false;
+  }, [model, active]);
+
+  return (
+    <aside
+      style={{
+        width,
+        flexShrink: 0,
+        boxSizing: "border-box",
+        height,
+        overflow: "hidden",
+        borderRadius: "0 8px 8px 0",
+        border: `1px solid ${theme.stroke.secondary}`,
+        borderLeft: "none",
+        background: theme.bg.elevated,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        padding: "12px 10px",
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span
+          style={{
+            fontWeight: 600,
+            fontSize: 12,
+            color: theme.text.primary,
+          }}
+        >
+          Files in this map
+        </span>
+        <span style={{ fontSize: 10, color: theme.text.tertiary }}>
+          {relPaths.length} file{relPaths.length === 1 ? "" : "s"} · selection
+          sticks · hover adds more · drag left edge to resize
+        </span>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <PierreFileTreeView
+          model={model}
+          style={{
+            height: "100%",
+            width: "100%",
+            backgroundColor: theme.bg.elevated,
+            color: theme.text.primary,
+          }}
+        />
+      </div>
+    </aside>
   );
 }
 
