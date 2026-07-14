@@ -4,5 +4,6 @@
 
 - Initial release as **Primitives**
 - Skills under `.agents/skills/` (Agent Skills open standard)
-- Cursor, Claude Code, Codex, and Pi plugin/package packaging
+- Cursor, Claude Code, Codex, Grok, and Pi plugin/package packaging
 - `map` skill with dual hosts: Cursor Canvas + Bun React (`app/`)
+- Marketplace assets: `assets/logo.svg`

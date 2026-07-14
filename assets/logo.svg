@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Primitives">
+  <rect width="64" height="64" rx="12" fill="#0F172A"/>
+  <rect x="12" y="36" width="16" height="16" rx="2" fill="#38BDF8"/>
+  <rect x="32" y="24" width="20" height="12" rx="2" fill="#F8FAFC"/>
+  <circle cx="22" cy="22" r="8" fill="#FBBF24"/>
+</svg>

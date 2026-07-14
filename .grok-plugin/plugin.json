@@ -1,6 +1,5 @@
 {
   "name": "primitives",
-  "displayName": "Primitives",
   "version": "0.1.0",
   "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": {
@@ -10,16 +9,10 @@
   "homepage": "https://github.com/snowmead/agentic-engineering",
   "repository": "https://github.com/snowmead/agentic-engineering",
   "license": "MIT",
-  "logo": "assets/logo.svg",
   "keywords": [
     "primitives",
     "skills",
     "agents"
-  ],
-  "category": "developer-tools",
-  "tags": [
-    "primitives",
-    "skills"
   ],
   "skills": "./.agents/skills/"
 }

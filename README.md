@@ -2,7 +2,13 @@
 
 Reusable agent primitives — skills, plugins, and supporting tools used across AI coding environments.
 
-Skills follow the [Agent Skills](https://agentskills.io/) open standard (`SKILL.md` + optional scripts/references/assets). They live under [`.agents/skills/`](.agents/skills/), the cross-client project path used by Cursor, VS Code / Copilot, and other compatible agents ([spec](https://agentskills.io/specification), [quickstart](https://agentskills.io/skill-creation/quickstart)).
+Skills follow the [Agent Skills](https://agentskills.io/) open standard.
+
+## What's included
+
+| Skill | Description |
+|-------|-------------|
+| [`map`](.agents/skills/map/) | Interactive codebase map (Cursor Canvas or Bun React). Requires [Bun](https://bun.sh) on `PATH`. |
 
 ## Installation
 
@@ -18,6 +24,8 @@ Target specific agents with `-a` (repeatable), e.g. `-a cursor -a claude-code`.
 
 <details>
 <summary><strong>Cursor</strong></summary>
+
+Requires [Bun](https://bun.sh) on `PATH` for the `map` skill.
 
 Skills:
 
@@ -66,6 +74,22 @@ bunx skills add snowmead/agentic-engineering -a codex
 </details>
 
 <details>
+<summary><strong>Grok</strong></summary>
+
+```bash
+grok plugin marketplace add snowmead/agentic-engineering
+grok plugin install primitives --trust
+```
+
+Or install this repo directly:
+
+```bash
+grok plugin install snowmead/agentic-engineering --trust
+```
+
+</details>
+
+<details>
 <summary><strong>Pi</strong></summary>
 
 ```bash
@@ -73,23 +97,6 @@ pi install git:github.com/snowmead/agentic-engineering
 ```
 
 </details>
-
-## Contents
-
-| Path | What it is |
-|------|------------|
-| [`.agents/skills/`](.agents/skills/) | Agent Skills (open standard) |
-| [`.cursor-plugin/`](.cursor-plugin/) | Cursor plugin |
-| [`.claude-plugin/`](.claude-plugin/) | Claude Code plugin + marketplace |
-| [`.codex-plugin/`](.codex-plugin/) | Codex plugin |
-| [`.agents/plugins/`](.agents/plugins/) | Codex marketplace |
-| [`package.json`](package.json) | Pi package manifest |
-
-### Skills
-
-| Skill | Description |
-|-------|-------------|
-| [`map`](.agents/skills/map/) | Interactive codebase map (Cursor Canvas or Bun React) |
 
 ## License
 
