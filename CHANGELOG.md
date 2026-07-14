@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 — 2026-07-14
+
+- **map:** Bun React host clones to `$TMPDIR/maps/<name>/` instead of `<repo>/maps/` (keeps Vite/node_modules out of the project)
+
 ## 0.1.3 — 2026-07-14
 
 - **map:** Bun/Vite host `FileTreePanel` uses `@pierre/trees` (Canvas keeps builtin fallback in Map.tsx)

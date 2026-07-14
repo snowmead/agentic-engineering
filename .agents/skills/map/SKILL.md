@@ -24,7 +24,7 @@ built from every path referenced in the map.
 | Environment | Host | Deliverable |
 |-------------|------|-------------|
 | Cursor with canvases | **Canvas** (default on Cursor) | `.canvas.tsx` in project canvases dir |
-| Claude / Codex / Pi / no canvases | **Bun React** | copy of `app/` under `<repo>/maps/<name>/` |
+| Claude / Codex / Pi / no canvases | **Bun React** | copy of `app/` under `$TMPDIR/maps/<name>/` |
 
 Same data contracts, scripts, and quality bars for both. Do not invent chrome from scratch.
 
@@ -58,15 +58,23 @@ Agents only copy the scaffold — do not edit the generator path unless changing
 
 ### Bun React host (other agents)
 
+Clone the Vite app into a **system temp directory** — never under the target
+repo (`maps/`, `node_modules`, or Vite `dist/` must not land in the project):
+
 ```bash
-cp -R "$SKILL_DIR/app" "<repo>/maps/<descriptive-name>"
-# edit data inside:
-MAP_FILE="<repo>/maps/<descriptive-name>/src/Map.tsx"
+MAP_DIR="${TMPDIR:-/tmp}/maps/<descriptive-name>"
+rm -rf "$MAP_DIR"
+mkdir -p "$MAP_DIR"
+cp -R "$SKILL_DIR/app/." "$MAP_DIR/"
+MAP_FILE="$MAP_DIR/src/Map.tsx"
 ```
 
-Then from that map dir: `bun install && bun run dev` → Vite on http://localhost:5173.
-Before shipping a Bun map, also run host verify (from skill scripts or the map
-dir — see Quality bar).
+`ROOT` in the map data still points at the real repo (for `FILE_MAP`); only the
+host app lives in `$MAP_DIR`.
+
+Then from `$MAP_DIR`: `bun install && bun run dev` → Vite on http://localhost:5173.
+Before shipping a Bun map, also run host verify (from skill scripts or `$MAP_DIR`
+— see Quality bar).
 
 5. **Replace all placeholders** in `MAP_FILE` before delivery:
    - `ROOT` → absolute repo root
