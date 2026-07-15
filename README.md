@@ -27,6 +27,8 @@ Target specific agents with `-a` (repeatable), e.g. `-a cursor -a claude-code`.
 
 Requires [Bun](https://bun.sh) on `PATH` for the `map` skill.
 
+The `map` skill is **not** auto-applied. After install, invoke it with `/map` (or attach the skill) when you want a codebase map.
+
 Skills:
 
 ```bash

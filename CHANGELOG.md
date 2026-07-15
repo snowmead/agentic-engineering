@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7 — 2026-07-14
+
+- **map:** `disable-model-invocation: true` — invoke with `/map` (not ambient auto-apply)
+- **map:** Canvas IDE contract — `metadata.surfaces: [ide]`, hard-require built-in canvas skill
+
 ## 0.1.6 — 2026-07-14
 
 - **map:** deslop scripts/UI/docs — valid example Mermaid JSON, sync without double reads, scaffold rewrites all `./host` imports, Bun `Button` forwards `disabled`, hover on native `div`s

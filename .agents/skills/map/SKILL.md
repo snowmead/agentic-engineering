@@ -4,12 +4,16 @@ description: >-
   Builds an interactive codebase map: beautiful-mermaid architecture diagrams
   (flowchart/sequence/class/ER/state), a navigable snake flowchart, interleaved
   prose+code sidebars, and a file tree. Delivers via Cursor Canvas or a Bun
-  React page. Use when the user asks for a codebase map, architecture
+  React page. Invoke with /map when the user wants a codebase map, architecture
   explanation, onboarding brief, interactive flow chart, navigable walkthrough,
   "show me how X works" as a diagram/map, or a visual mental model of a
   feature/subsystem with clickable jumps into files.
 license: MIT
 compatibility: Requires Bun on PATH. Cursor Canvas host also needs Cursor canvases.
+disable-model-invocation: true
+metadata:
+  surfaces:
+    - ide
 ---
 
 # Map
@@ -23,7 +27,7 @@ built from every path referenced in the map.
 
 | Environment | Host | Deliverable |
 |-------------|------|-------------|
-| Cursor with canvases | **Canvas** (default on Cursor) | `.canvas.tsx` in project canvases dir |
+| Cursor with canvases | **Canvas** (default on Cursor; IDE-only) | `.canvas.tsx` in project canvases dir |
 | Claude / Codex / Pi / no canvases | **Bun React** | copy of `app/` under `$TMPDIR/<repo-slug>/maps/<name>/` |
 
 Same data contracts, scripts, and quality bars for both. Do not invent chrome from scratch.
@@ -34,8 +38,8 @@ Do this in order — skip steps and you will ship a broken map:
 
 1. **Prereqs:** [Bun](https://bun.sh) on `PATH`. Resolve `SKILL_DIR` as the directory
    that contains this `SKILL.md`.
-   - **Canvas host:** also read the Cursor **canvas** skill
-     (`~/.cursor/skills-cursor/canvas/SKILL.md`) before any `.canvas.tsx`.
+   - **Canvas host:** load the Cursor **canvas** skill before writing any `.canvas.tsx`.
+     Do not skip.
 2. **Contracts (mandatory reads):**
    - [canvas-pattern.md](canvas-pattern.md) — layout, data shape, snake map, tree
    - [architecture-viewport.md](architecture-viewport.md) — Mermaid pan/zoom/Fit
