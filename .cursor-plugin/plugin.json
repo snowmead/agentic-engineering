@@ -1,7 +1,7 @@
 {
   "name": "primitives",
   "displayName": "Primitives",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": {
     "name": "Michael Assaf",
@@ -26,6 +26,7 @@
     "oxcode"
   ],
   "skills": "./.agents/skills/",
+  "agents": "./agents/",
   "commands": "./commands/",
   "mcpServers": ".mcp.json"
 }

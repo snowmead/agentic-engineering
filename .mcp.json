@@ -4,6 +4,10 @@
       "type": "stdio",
       "command": "oxcode",
       "args": ["mcp"]
+    },
+    "parallel-search": {
+      "type": "http",
+      "url": "https://search.parallel.ai/mcp"
     }
   }
 }

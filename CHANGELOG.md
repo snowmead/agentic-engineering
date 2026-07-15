@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-07-15
+
+- **Agents:** add `cartographer` (readonly Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok
+- **MCP:** add Parallel Search (`https://search.parallel.ai/mcp` — `web_search`, `web_fetch`) alongside oxcode
+- **map:** exploration step requires cartographer when plugin agents are available
+- **Docs:** README covers agents packaging, Parallel Search, and Codex agents gap
+
 ## 0.2.0 — 2026-07-15
 
 - **MCP:** ship [oxcode](https://github.com/oxgraph/oxcode) via shared root `.mcp.json` for Cursor, Claude Code, Codex, and Grok plugins

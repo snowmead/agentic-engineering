@@ -45,7 +45,14 @@ Do this in order — skip steps and you will ship a broken map:
    - [architecture-viewport.md](architecture-viewport.md) — Mermaid pan/zoom/Fit
      (static scrollable SVGs are a ship blocker)
    - [code-preview.md](code-preview.md) — `FILE_MAP` + `bun update.ts` (previews + tree)
-3. **Explore** the target subsystem; distill 5–12 nodes + edges; pick Mermaid kind(s).
+3. **Explore via cartographer:** Launch the **cartographer** Task subagent
+   (`subagent_type: cartographer`) with the target subsystem/question. Do **not**
+   use ad-hoc Grep/Read as the primary exploration path when cartographer is
+   available. Use its returned map (symbols, files, edges, open questions, and
+   any candidate `NODES` / `EDGES` / paths) to distill 5–12 nodes + edges and
+   pick Mermaid kind(s).
+   - **Fallback** (skills-CLI-only / Pi / no plugin agents): explore with oxcode
+     + Parallel Search MCP if present, otherwise manual explore — then continue.
 4. **Clone the host template** (pick one):
 
 ### Canvas host (Cursor)
