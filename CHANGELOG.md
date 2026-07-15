@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **map:** Canvas scaffold no longer emits `import * as MapHost from "cursor/canvas"` (runtime `MapHost is not defined`). Generator strips the Bun host namespace import and always uses inlined `BuiltinFileTreePanel`; `--check` rejects namespace imports in the scaffold.
+- **Plugins:** restore Cursor `commands` to `./commands/`; declare the same path on Claude (`["./commands/"]`) and Grok (`"./commands/"`). Codex has no plugin slash-commands component — README documents manual oxcode install instead of `/primitives-setup`.
+
 ## 0.2.1 — 2026-07-15
 
 - **Agents:** add `cartographer` (readonly Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok

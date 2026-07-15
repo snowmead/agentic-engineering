@@ -1,9 +1,12 @@
 # Canvas pattern — spatial map
 
-Canvases import **only** `cursor/canvas` (+ React hooks/types). Build a
-React Flow–like map with wrapped rows, pan/zoom, resizable left sidebar, concise
-teasers, **clickable edges** that open dependency detail with interleaved code,
-and a **right file tree** for hover-preview navigation.
+Canvases import **only named exports** from `cursor/canvas` (+ React hooks/types).
+Never `import * as MapHost from "cursor/canvas"` — the canvas runtime does not
+bind namespace imports, and the SDK has no `FileTreePanel` (use the scaffold’s
+inlined `BuiltinFileTreePanel`). Build a React Flow–like map with wrapped rows,
+pan/zoom, resizable left sidebar, concise teasers, **clickable edges** that open
+dependency detail with interleaved code, and a **right file tree** for
+hover-preview navigation.
 
 **Start from the host template** — do not invent chrome from scratch:
 
@@ -28,10 +31,14 @@ or React Flow into `.canvas.tsx` or Bun `Map.tsx`. Bun pierre DiffView stays in
 | [trees.software](https://trees.software/) | `@pierre/trees` | **Canvas:** builtin `FileTreePanel` in Map.tsx. **Bun/Vite:** `@pierre/trees` in `app/src/host` `FileTreePanel` |
 | [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) | `beautiful-mermaid` | **Pre-render SVG** with `scripts/render-mermaid.mjs`; embed + hotspots |
 
-Anti-pattern: `import … from "@pierre/*"` or `beautiful-mermaid` in `.canvas.tsx`
-or Bun `Map.tsx`. Pierre belongs only in the Bun **host** (`app/src/host` +
-diffs worker pool in `main.tsx`). Do not use `Bun.serve` HTML for the map app —
-Vite is required for diffs workers.
+Anti-patterns:
+- `import … from "@pierre/*"` or `beautiful-mermaid` in `.canvas.tsx` or Bun
+  `Map.tsx`. Pierre belongs only in the Bun **host** (`app/src/host` + diffs
+  worker pool in `main.tsx`). Do not use `Bun.serve` HTML for the map app —
+  Vite is required for diffs workers.
+- `import * as … from "cursor/canvas"` (or any `MapHost` bridge) in a
+  `.canvas.tsx` — causes `MapHost is not defined` at runtime. The scaffold
+  generator strips this; Bun keeps `import * as MapHost from "./host"` only.
 
 ## Architecture diagrams
 

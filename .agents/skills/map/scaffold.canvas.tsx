@@ -21,7 +21,6 @@ import {
   useHostTheme,
   type DiffLineData,
 } from "cursor/canvas";
-import * as MapHost from "cursor/canvas";
 import {
   useEffect,
   useMemo,
@@ -1006,9 +1005,8 @@ function FileTreePanel(props: {
   width: number;
   previewFile: (ref: FileRef) => void;
 }) {
-  const HostTree = (MapHost as { FileTreePanel?: typeof BuiltinFileTreePanel })
-    .FileTreePanel;
-  if (HostTree) return <HostTree {...props} />;
+  // Canvas SDK has no FileTreePanel export — always use the inlined builtin.
+  // (Bun host maps optionally swap in @pierre/trees via ./host.)
   return <BuiltinFileTreePanel {...props} />;
 }
 
