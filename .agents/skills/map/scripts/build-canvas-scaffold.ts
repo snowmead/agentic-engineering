@@ -4,6 +4,11 @@
  *
  *   bun scripts/build-canvas-scaffold.ts
  *   bun scripts/build-canvas-scaffold.ts --check
+ *
+ * Canvas runtime only supports named imports from `cursor/canvas`. The Bun
+ * host's `import * as MapHost from "./host"` (optional @pierre/trees
+ * FileTreePanel) is stripped and FileTreePanel always uses the inlined
+ * BuiltinFileTreePanel in the scaffold.
  */
 import { resolve } from "node:path";
 
@@ -21,16 +26,31 @@ const HEADER = `/**
  */
 `;
 
+const CANVAS_FILE_TREE_PANEL = `function FileTreePanel(props: {
+  files: { relPath: string; absPath: string }[];
+  selectedPaths: string[];
+  hoverPaths: string[];
+  theme: ReturnType<typeof useHostTheme>;
+  height: number;
+  width: number;
+  previewFile: (ref: FileRef) => void;
+}) {
+  // Canvas SDK has no FileTreePanel export — always use the inlined builtin.
+  // (Bun host maps optionally swap in @pierre/trees via ./host.)
+  return <BuiltinFileTreePanel {...props} />;
+}`;
+
 function usage(code = 2): never {
   console.error(`Usage:
   bun build-canvas-scaffold.ts [--check]
 
 Reads app/src/Map.tsx and writes scaffold.canvas.tsx
-(replacing ./host import with cursor/canvas).`);
+(replacing ./host import with cursor/canvas; stripping MapHost).`);
   process.exit(code);
 }
 
-function generate(source: string): string {
+/** Transform Bun Map.tsx source into a Cursor-canvas-safe scaffold body. */
+export function generate(source: string): string {
   let body = source.replace(/^\/\*\*[\s\S]*?\*\/\s*/, "");
   body = body.replace(
     /from\s+["']\.\/host["']/g,
@@ -41,33 +61,62 @@ function generate(source: string): string {
       'Expected import from "./host" in Map.tsx (not found after transform)',
     );
   }
+
+  // Named imports only — namespace import is invalid / unbound in canvas runtime.
+  body = body.replace(/^import \* as MapHost from "cursor\/canvas";\n/m, "");
+
+  const replaced = body.replace(
+    /function FileTreePanel\(props: \{[\s\S]*?\n\}\) \{\n  const HostTree = \(MapHost as \{ FileTreePanel\?: typeof BuiltinFileTreePanel \}\)\n    \.FileTreePanel;\n  if \(HostTree\) return <HostTree \{\.\.\.props\} \/>;\n  return <BuiltinFileTreePanel \{\.\.\.props\} \/>;\n\}/,
+    CANVAS_FILE_TREE_PANEL,
+  );
+  if (replaced === body) {
+    throw new Error(
+      "FileTreePanel MapHost wrapper not found — update build-canvas-scaffold.ts",
+    );
+  }
+  body = replaced;
+
+  if (body.includes("MapHost")) {
+    throw new Error(
+      "MapHost still present after canvas transform — update build-canvas-scaffold.ts",
+    );
+  }
+
   return HEADER + body.replace(/^\n+/, "");
 }
 
-const check = Bun.argv.includes("--check");
-if (Bun.argv.some((a) => a === "-h" || a === "--help")) usage(0);
+if (import.meta.main) {
+  const check = Bun.argv.includes("--check");
+  if (Bun.argv.some((a) => a === "-h" || a === "--help")) usage(0);
 
-const source = await Bun.file(sourcePath).text();
-const generated = generate(source);
+  const source = await Bun.file(sourcePath).text();
+  const generated = generate(source);
 
-if (check) {
-  const outFile = Bun.file(outPath);
-  if (!(await outFile.exists())) {
-    console.error(
-      "scaffold.canvas.tsx is missing. Run: bun scripts/build-canvas-scaffold.ts",
-    );
-    process.exit(1);
+  if (check) {
+    const outFile = Bun.file(outPath);
+    if (!(await outFile.exists())) {
+      console.error(
+        "scaffold.canvas.tsx is missing. Run: bun scripts/build-canvas-scaffold.ts",
+      );
+      process.exit(1);
+    }
+    const current = await outFile.text();
+    if (current !== generated) {
+      console.error(
+        "scaffold.canvas.tsx is out of date. Run: bun scripts/build-canvas-scaffold.ts",
+      );
+      process.exit(1);
+    }
+    if (current.includes("MapHost") || /import \* as /.test(current)) {
+      console.error(
+        "scaffold.canvas.tsx must not use MapHost or namespace imports from cursor/canvas",
+      );
+      process.exit(1);
+    }
+    console.log("scaffold.canvas.tsx is up to date");
+    process.exit(0);
   }
-  const current = await outFile.text();
-  if (current !== generated) {
-    console.error(
-      "scaffold.canvas.tsx is out of date. Run: bun scripts/build-canvas-scaffold.ts",
-    );
-    process.exit(1);
-  }
-  console.log("scaffold.canvas.tsx is up to date");
-  process.exit(0);
+
+  await Bun.write(outPath, generated);
+  console.log(`Wrote ${outPath}`);
 }
-
-await Bun.write(outPath, generated);
-console.log(`Wrote ${outPath}`);

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **map:** Canvas scaffold no longer emits `import * as MapHost from "cursor/canvas"` (runtime `MapHost is not defined`). Generator strips the Bun host namespace import and always uses inlined `BuiltinFileTreePanel`; `--check` rejects namespace imports in the scaffold.
+
 ## 0.2.1 — 2026-07-15
 
 - **Agents:** add `cartographer` (readonly Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok

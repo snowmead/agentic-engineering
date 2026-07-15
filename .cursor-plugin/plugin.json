@@ -27,6 +27,8 @@
   ],
   "skills": "./.agents/skills/",
   "agents": "./agents/",
-  "commands": "./commands/",
+  "commands": [
+    "commands/primitives-setup.md"
+  ],
   "mcpServers": ".mcp.json"
 }
