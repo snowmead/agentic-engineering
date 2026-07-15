@@ -10,11 +10,11 @@ Skills follow the [Agent Skills](https://agentskills.io/) open standard.
 
 | Skill | Description |
 |-------|-------------|
-| [`map`](.agents/skills/map/) | Interactive codebase map (Cursor Canvas or Bun React). Requires [Bun](https://bun.sh) on `PATH`. |
+| [`map`](.agents/skills/map/) | Interactive codebase map (Cursor Canvas or Bun React). |
 
 ### MCP tools (oxcode)
 
-Plugin installs for **Cursor**, **Claude Code**, **Codex**, and **Grok** ship the [oxcode](https://github.com/oxgraph/oxcode) MCP server (stdio: `oxcode mcp`). The plugin is config-only — run `/primitives-setup` once (oxcode binary today; any future prerequisites later), then approve the MCP server when prompted.
+Plugin installs for **Cursor**, **Claude Code**, **Codex**, and **Grok** ship the [oxcode](https://github.com/oxgraph/oxcode) MCP server (stdio: `oxcode mcp`). The plugin is config-only — run `/primitives-setup` once for required deps, then approve the MCP server when prompted.
 
 | Tool | What it answers |
 |------|-----------------|
@@ -43,8 +43,6 @@ Target specific agents with `-a` (repeatable), e.g. `-a cursor -a claude-code`.
 
 <details>
 <summary><strong>Cursor</strong></summary>
-
-Requires [Bun](https://bun.sh) on `PATH` for the `map` skill.
 
 The `map` skill is **not** auto-applied. After install, invoke it with `/map` (or attach the skill) when you want a codebase map.
 
