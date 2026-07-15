@@ -108,7 +108,7 @@ codex plugin marketplace add snowmead/agentic-engineering
 codex plugin add primitives@primitives
 ```
 
-Approve the **oxcode** and **parallel-search** MCP servers when prompted. Run `/primitives-setup` if your host exposes that command, or install the oxcode binary manually:
+Approve the **oxcode** and **parallel-search** MCP servers when prompted. Codex does **not** load plugin slash-commands (`/primitives-setup` is Cursor/Claude/Grok only) — install the oxcode binary manually:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/oxgraph/oxcode/releases/latest/download/oxcode-cli-installer.sh | sh
