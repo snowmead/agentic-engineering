@@ -1,6 +1,6 @@
 {
   "name": "primitives",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": "Michael Assaf <michael@snowmead.com>",
@@ -9,7 +9,9 @@
     "pi-package",
     "primitives",
     "skills",
-    "agents"
+    "agents",
+    "mcp",
+    "oxcode"
   ],
   "pi": {
     "skills": [

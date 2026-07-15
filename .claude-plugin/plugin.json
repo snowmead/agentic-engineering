@@ -1,6 +1,6 @@
 {
   "name": "primitives",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": {
     "name": "Michael Assaf",
@@ -10,7 +10,9 @@
   "keywords": [
     "primitives",
     "skills",
-    "agents"
+    "agents",
+    "mcp",
+    "oxcode"
   ],
   "skills": ["./.agents/skills/"]
 }

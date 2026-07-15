@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 — 2026-07-15
+
+- **MCP:** ship [oxcode](https://github.com/oxgraph/oxcode) via shared root `.mcp.json` for Cursor, Claude Code, Codex, and Grok plugins
+- **Setup:** add `/primitives-setup` for the `oxcode` binary and any future setup the plugin needs (config-only; cannot bundle natives)
+- **Docs:** README covers per-host MCP approval + Pi / skills-CLI fallbacks
+
 ## 0.1.7 — 2026-07-14
 
 - **map:** `disable-model-invocation: true` — invoke with `/map` (not ambient auto-apply)
