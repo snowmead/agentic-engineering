@@ -179,6 +179,8 @@ const MIN_SIDEBAR_W = 240;
 const MAX_SIDEBAR_W = 900;
 const DEFAULT_SIDEBAR_W = 320;
 const MIN_TREE_W = 200;
+/** CardHeader chrome above the files tree (minHeight 28 + pad 12 + border). */
+const FILES_CARD_HEADER_H = 41;
 const MAX_TREE_W = 720;
 const DEFAULT_TREE_W = 280;
 /** Gap between floating overlays and the viewport edges. */
@@ -1643,10 +1645,14 @@ function BuiltinFileTreePanel({
     "treeUserExpanded",
     {},
   );
-  const activePaths = useMemo(
-    () => [...new Set([...selectedPaths, ...hoverPaths])],
-    [selectedPaths, hoverPaths],
-  );
+  // Stabilize on path contents — parents often pass fresh array identities each render.
+  const selectedKey = selectedPaths.join("\0");
+  const hoverKey = hoverPaths.join("\0");
+  const activePaths = useMemo(() => {
+    const selected = selectedKey.length === 0 ? [] : selectedKey.split("\0");
+    const hovered = hoverKey.length === 0 ? [] : hoverKey.split("\0");
+    return [...new Set([...selected, ...hovered])];
+  }, [selectedKey, hoverKey]);
 
   useEffect(() => {
     if (activePaths.length === 0) return;
@@ -1939,9 +1945,12 @@ export default function MapView() {
   const selectedEdge =
     focus.kind === "edge" ? (edgeMeta.get(focus.key) ?? null) : null;
   const selectedEntity = selectedEdge ?? selectedNode ?? NODES[0];
-  const selectedPaths = [
-    ...new Set(collectFiles(selectedEntity).map((f) => relPath(f.path))),
-  ];
+  const selectedPaths = useMemo(
+    () => [
+      ...new Set(collectFiles(selectedEntity).map((f) => relPath(f.path))),
+    ],
+    [selectedEntity],
+  );
   const pathIndex = selectedNode ? PATH.indexOf(selectedNode.id) : -1;
   const typeScale = sidebarType(sidebarW);
 
@@ -2652,7 +2661,7 @@ export default function MapView() {
               selectedPaths={selectedPaths}
               hoverPaths={hoverPaths}
               theme={theme}
-              height={panelH}
+              height={Math.max(0, panelH - FILES_CARD_HEADER_H)}
               width={treeW}
               previewFile={previewFile}
             />

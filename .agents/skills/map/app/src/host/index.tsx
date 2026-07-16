@@ -901,10 +901,14 @@ export function FileTreePanel({
     },
   });
 
-  const active = useMemo(
-    () => [...new Set([...selectedPaths, ...hoverPaths])],
-    [selectedPaths, hoverPaths],
-  );
+  // Stabilize on path contents — MapView may pass fresh array identities each render.
+  const selectedKey = selectedPaths.join("\0");
+  const hoverKey = hoverPaths.join("\0");
+  const active = useMemo(() => {
+    const selected = selectedKey.length === 0 ? [] : selectedKey.split("\0");
+    const hovered = hoverKey.length === 0 ? [] : hoverKey.split("\0");
+    return [...new Set([...selected, ...hovered])];
+  }, [selectedKey, hoverKey]);
 
   useEffect(() => {
     model.resetPaths(relPaths);
