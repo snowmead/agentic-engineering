@@ -147,6 +147,12 @@ in `.canvas.tsx`. **Bun app:** use `app/src/host` polyfills (already wired). Do
 `Map.tsx` / `.canvas.tsx` — Bun highlighting + tree live in `app/src/host` via
 `@pierre/diffs` / `@pierre/trees` (Vite).
 
+Use SDK chrome (`Card` / `CardHeader` / `CardBody`, `Callout`, `Grid` /
+`Divider` / `Spacer`, `Link`, `mergeStyle`) for overlays. See
+[canvas-pattern.md](canvas-pattern.md) (Native `cursor/canvas` chrome). Keep
+snake camera, Mermaid world, and resize handles custom. Do not use
+`computeDAGLayout` for the serpentine path.
+
 Default export in `Map.tsx` must be named **`MapView`** (never `Map` — that
 shadows `globalThis.Map` and stack-overflows on load).
 

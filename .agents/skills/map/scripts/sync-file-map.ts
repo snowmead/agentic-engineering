@@ -64,17 +64,41 @@ function parseArgs(argv: string[]): Opts {
   return out;
 }
 
-function escTemplate(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+/**
+ * Find a `// <map:…>` marker only at line start. Nested copies inside
+ * JSON-stringified FILE_CONTENTS sit mid-line (after `\\n` escapes) and must
+ * not match. Matching those used to truncate canvases that embed Map.tsx.
+ */
+function findLineMarker(src: string, marker: string, afterPos = 0): number {
+  let from = afterPos;
+  while (from <= src.length) {
+    const i = src.indexOf(marker, from);
+    if (i < 0) return -1;
+    if (i === 0 || src[i - 1] === "\n") return i;
+    from = i + 1;
+  }
+  return -1;
 }
 
-function sliceMarked(src: string, begin: string, end: string): string | null {
-  const i = src.indexOf(begin);
-  // Prefer last end marker — FILE_CONTENTS may embed sources that contain the
-  // same `// </map:…>` comments (e.g. Map.tsx itself).
-  const j = src.lastIndexOf(end);
-  if (i < 0 || j < 0 || j < i) return null;
+function sliceMarked(
+  src: string,
+  begin: string,
+  end: string,
+  afterPos = 0,
+): string | null {
+  const i = findLineMarker(src, begin, afterPos);
+  if (i < 0) return null;
+  const j = findLineMarker(src, end, i + begin.length);
+  if (j < 0) return null;
   return src.slice(i + begin.length, j);
+}
+
+function markerEnd(src: string, begin: string, end: string, afterPos = 0): number {
+  const i = findLineMarker(src, begin, afterPos);
+  if (i < 0) return -1;
+  const j = findLineMarker(src, end, i + begin.length);
+  if (j < 0) return -1;
+  return j + end.length;
 }
 
 function extractRoot(src: string, override: string | null): string {
@@ -116,8 +140,9 @@ async function readUtf8(abs: string): Promise<string> {
 }
 
 function buildContentsBlock(paths: string[], fileText: Map<string, string>): string {
+  // JSON.stringify is safe for backticks, ${}, and nested map markers.
   const entries = paths.map((abs) => {
-    return `  [\`${abs}\`]: \`${escTemplate(fileText.get(abs)!)}\``;
+    return `  ${JSON.stringify(abs)}: ${JSON.stringify(fileText.get(abs)!)}`;
   });
   return [
     BEGIN_CONTENTS,
@@ -132,7 +157,7 @@ function buildContentsBlock(paths: string[], fileText: Map<string, string>): str
 }
 
 function buildPathsBlock(paths: string[]): string {
-  const entries = paths.map((abs) => `  \`${abs}\``);
+  const entries = paths.map((abs) => `  ${JSON.stringify(abs)}`);
   return [
     BEGIN_PATHS,
     "/** Unique abs paths for the file tree. Generated — do not edit. */",
@@ -150,13 +175,13 @@ function replaceMarked(
   begin: string,
   end: string,
   block: string,
+  afterPos = 0,
 ): string | null {
-  const i = src.indexOf(begin);
-  const j = src.lastIndexOf(end);
-  if (i >= 0 && j > i) {
-    return src.slice(0, i) + block + src.slice(j + end.length).replace(/^\n/, "");
-  }
-  return null;
+  const i = findLineMarker(src, begin, afterPos);
+  if (i < 0) return null;
+  const j = findLineMarker(src, end, i + begin.length);
+  if (j < 0) return null;
+  return src.slice(0, i) + block + src.slice(j + end.length).replace(/^\n/, "");
 }
 
 function upsertMarked(
@@ -165,10 +190,11 @@ function upsertMarked(
   end: string,
   block: string,
   afterEnd: string,
+  afterPos = 0,
 ): string {
-  const replaced = replaceMarked(src, begin, end, block);
+  const replaced = replaceMarked(src, begin, end, block, afterPos);
   if (replaced != null) return replaced;
-  const anchor = src.indexOf(afterEnd);
+  const anchor = findLineMarker(src, afterEnd, afterPos);
   if (anchor < 0) {
     throw new Error(`Cannot insert ${begin} (missing ${afterEnd})`);
   }
@@ -219,6 +245,11 @@ async function main() {
     );
     process.exit(1);
   }
+  const mapBlockEnd = markerEnd(src, BEGIN_MAP, END_MAP);
+  if (mapBlockEnd < 0) {
+    console.error(`Missing ${END_MAP}`);
+    process.exit(1);
+  }
 
   const paths = pathsFromFileMap(mapBody, root);
   if (paths.length === 0) {
@@ -239,19 +270,27 @@ async function main() {
   const contentsBlock = buildContentsBlock(paths, fileText);
   const pathsBlock = buildPathsBlock(paths);
 
+  // Search after FILE_MAP so nested markers in embedded sources cannot hijack rewrites.
   let next = upsertMarked(
     src,
     BEGIN_CONTENTS,
     END_CONTENTS,
     contentsBlock,
     END_MAP,
+    mapBlockEnd,
   );
+  const contentsEnd = markerEnd(next, BEGIN_CONTENTS, END_CONTENTS, mapBlockEnd);
+  if (contentsEnd < 0) {
+    console.error(`Missing ${BEGIN_CONTENTS} … ${END_CONTENTS} after rewrite`);
+    process.exit(1);
+  }
   next = upsertMarked(
     next,
     BEGIN_PATHS,
     END_PATHS,
     pathsBlock,
     END_CONTENTS,
+    contentsEnd,
   );
   const changed = next !== src;
 

@@ -14,6 +14,29 @@ hover-preview navigation.
   [`app/src/Map.tsx`](app/src/Map.tsx)) into the project `canvases/` dir
 - **Bun React:** `bun scripts/map-dir.ts <name> --init` → `$TMPDIR/<repo-slug>/maps/<name>/` (never under the target repo; Canvas/Cursor skips this)
 
+### Native `cursor/canvas` chrome
+
+Use SDK surfaces for overlay and chrome. Keep pan/zoom, snake layout, Mermaid
+world, modal backdrop, and resize handles custom.
+
+| UI | SDK composition |
+|----|-----------------|
+| Left/right floating panels | Absolute positioning wrapper + `Card` / `CardHeader` / `CardBody` |
+| Sidebar title + close | `CardHeader` with `trailing={<IconButton…/>}` (plain text title) |
+| Code excerpts | `Card` + `CardHeader` + `CardBody style={{ padding: 0 }}` + `DiffView` |
+| Builtin tree folders | Compact custom rows (18px). Skip `CollapsibleSection` (too tall for dense trees). |
+| Modal missing-file tip | `Callout tone="info"` in the modal body |
+| Toolbar grouping | `Card` shell + `Row` / `Grid` / `Divider` / `Spacer` |
+| Style tweaks on SDK comps | `mergeStyle(base, override)` |
+
+**`Link` vs `Button`.** `Link` is for real `http(s)` URLs in the browser. File
+preview and open-in-IDE stay `Button` + `previewFile` / `useCanvasAction`.
+`richInline` turns markdown links and bare URLs into `Link`; backtick code
+stays `Code`.
+
+Bun preview polyfills the same named exports in [`app/src/host`](app/src/host)
+so `Map.tsx` stays one source of truth. Canvas gets the real SDK via scaffold.
+
 Then replace `ROOT` / `FILE_MAP` / `NODES` / `EDGES` / `ARCH_DIAGRAMS`. Durable
 UI is one **full-bleed** pan/zoom world: Mermaid architecture SVG stacked above
 the snake flowchart in a shared camera, with floating left/right overlays.
@@ -209,8 +232,8 @@ Render `body` as a vertical stack:
 
 | Block | UI |
 |-------|-----|
-| `prose` | `Text` with `richInline` (backtick splitter) at `typeScale.body` |
-| `code` | Resolve `fileRef(block.ref)` + `snippet(block.ref)`. Compact panel: ghost `Button` header (`path:line` → **preview popup**), optional caption, **`DiffView`**. See [code-preview.md](code-preview.md). |
+| `prose` | `Text` with `richInline` (backticks → `Code`; `http(s)` / markdown links → `Link`) at `typeScale.body` |
+| `code` | Resolve `fileRef(block.ref)` + `snippet(block.ref)`. Ghost `Button` path (`path:line` → **preview popup**), optional caption, then `Card` / `CardHeader` / `CardBody` + **`DiffView`**. See [code-preview.md](code-preview.md). |
 
 Do **not** add a separate Source footer — code block headers already open previews.
 
