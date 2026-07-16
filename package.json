@@ -1,6 +1,6 @@
 {
   "name": "primitives",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": "Michael Assaf <michael@snowmead.com>",

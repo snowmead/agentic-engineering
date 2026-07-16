@@ -70,7 +70,9 @@ function escTemplate(s: string): string {
 
 function sliceMarked(src: string, begin: string, end: string): string | null {
   const i = src.indexOf(begin);
-  const j = src.indexOf(end);
+  // Prefer last end marker — FILE_CONTENTS may embed sources that contain the
+  // same `// </map:…>` comments (e.g. Map.tsx itself).
+  const j = src.lastIndexOf(end);
   if (i < 0 || j < 0 || j < i) return null;
   return src.slice(i + begin.length, j);
 }
@@ -150,7 +152,7 @@ function replaceMarked(
   block: string,
 ): string | null {
   const i = src.indexOf(begin);
-  const j = src.indexOf(end);
+  const j = src.lastIndexOf(end);
   if (i >= 0 && j > i) {
     return src.slice(0, i) + block + src.slice(j + end.length).replace(/^\n/, "");
   }

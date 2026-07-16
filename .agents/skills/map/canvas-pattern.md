@@ -15,9 +15,10 @@ hover-preview navigation.
 - **Bun React:** `bun scripts/map-dir.ts <name> --init` → `$TMPDIR/<repo-slug>/maps/<name>/` (never under the target repo; Canvas/Cursor skips this)
 
 Then replace `ROOT` / `FILE_MAP` / `NODES` / `EDGES` / `ARCH_DIAGRAMS`. Durable
-top-level sections are (1) Mermaid architecture and (2) the React Flow
-three-column map. After the `Add more context below.` comment, agents may add
-optional ad-hoc sections; do not bake in a required “Gotchas” section.
+UI is one **full-bleed** pan/zoom world: Mermaid architecture SVG stacked above
+the snake flowchart in a shared camera, with floating left/right overlays.
+After the `Add more context below.` comment, agents may add optional ad-hoc
+sections; do not bake in a required “Gotchas” section.
 
 **Do not** npm-import `@pierre/trees`, `@pierre/diffs`, `beautiful-mermaid`,
 or React Flow into `.canvas.tsx` or Bun `Map.tsx`. Bun pierre DiffView stays in
@@ -42,14 +43,15 @@ Anti-patterns:
 
 ## Architecture diagrams
 
-Place **above** the three-column map. 1–3 diagrams; switch with pills.
+Place **above** the snake nodes in the **same** camera world (`ARCH_SNAKE_GAP`
+between regions). 1–3 diagrams; switch with floating toolbar pills.
 Pick Mermaid kind while authoring — see [SKILL.md](SKILL.md) Mermaid kind table.
 
 **STOP — read and keep [architecture-viewport.md](architecture-viewport.md)
-in full.** That file is the source of truth for pan/zoom/Fit, vertical resize,
+in full.** That file is the source of truth for shared pan/zoom/Fit, hotspot
 click hit-testing under pointer capture, selection chrome, and pointer cursor.
-A static scrollable SVG is a **ship blocker**. Scaffold already includes
-`ArchitecturePanel`; do not invent a simpler SVG box.
+A static scrollable SVG is a **ship blocker**. Scaffold already embeds the arch
+SVG in the unified `MapView` world; do not invent a second viewport.
 
 ### Data + interactivity
 
@@ -58,7 +60,7 @@ type ArchHotspot = { label: string; nodeId?: string; edgeKey?: string };
 type ArchDiagram = {
   id: string;
   title: string;
-  kind: "flowchart" | "sequence" | "class" | "er" | "state";
+  kind: "flowchart" | "sequence" | "class" | "er" | "state" | "c4";
   svg: string; // from beautiful-mermaid — never runtime-rendered in canvas
   hotspots: ArchHotspot[];
 };
@@ -67,8 +69,8 @@ type ArchDiagram = {
 - Render at authoring time: `bun scripts/render-mermaid.mjs --json --file …`
 - Keep `viewBox`; drop `@import` fonts. Camera world sizing via `svgForCamera`
   — see [architecture-viewport.md](architecture-viewport.md).
-- Persist `archDiagram`, `archView`, `archViewportH`
-- Hotspot chips + SVG shapes both select map nodes/edges
+- Persist `archDiagram` + shared `view` (no separate `archView` / height keys)
+- SVG hotspot shapes select map nodes/edges (no toolbar hotspot chip row)
 - Hover hotspot chip → `previewFiles(collectFiles(entity))`
 
 ## Holistic layout
@@ -95,21 +97,33 @@ beside wrap-edges) with an editor-bg pill so they never collide with nodes.
 
 ## Page structure
 
-1. Title + one-sentence overview
-2. **Architecture** — beautiful-mermaid SVG tabs + hotspot chips (**full viewport contract**)
-3. Toolbar
-4. **Row:** **left sidebar** (+ right-edge resize) | **map** (viewport + height resize) | **right file tree** (+ left-edge resize, `treeW` ~200–720)
+1. **Full-bleed shell** (`position: fixed; inset: 0` — escapes CanvasShell
+   page padding) with one `data-map-viewport`
+2. **Unified world** — Mermaid arch SVG at `y≈0`, snake map below (`ARCH_SNAKE_GAP`)
+3. **Floating toolbar** — bottom-center overlay; icon Zoom/Fit/Prev/Next only
+4. **Overlay sidebars** — left detail + right file tree hover over the diagram
 5. Optional ad-hoc sections **only** below `Add more context below.` — no ritual Gotchas
 
-### Three-column layout
+### Full-bleed overlay layout
 
 ```
-[ detail sidebar ] | [ pan/zoom map ] | [ file tree ]
+┌─────────────────────────────────────────────┐
+│  ┌────────┐              ┌──────────────┐   │
+│  │ left   │   full-bleed │ right tree   │   │
+│  │ detail │   pan/zoom   │              │   │
+│  │ overlay│   world      │   overlay    │   │
+│  └────────┘              └──────────────┘   │
+│           [ floating toolbar · bottom ]     │
+└─────────────────────────────────────────────┘
 ```
 
-- Left: focus detail (`DocBlock[]`, Source, navigation)
-- Center: snake-wrapped nodes + clickable edges
-- Right: paths referenced anywhere in `NODES` + `EDGES` (not the whole monorepo)
+- Diagram: edge-to-edge; no map border, no height-resize gutters, no flex columns
+- Sidebars float with inset (`OVERLAY_INSET` ~14px from top/bottom/outer edge);
+  toolbar floats bottom-center (`data-map-toolbar`, `bottom: 16`)
+- Left overlay: focus detail (`DocBlock[]`, navigation); right-edge resize
+- Right overlay: paths from `NODES` + `EDGES` (`treeW` ~200–720); left-edge resize
+- Overlays float (`position: absolute`); they must **not** shrink map width
+- Default camera / Fit: `{ x: 0, y: 0, zoom: 1 }` — no offset dead space at top-left
 
 Tree is rooted at the repo `ROOT`; display relative paths (`crates/...`).
 Default: top-level folders only, closed. Hover expands ancestors and highlights
@@ -148,7 +162,7 @@ type MapNode = {
   label: string;
   teaser: string;   // ON node
   body: DocBlock[]; // sidebar — interleaved prose + code
-  files: FileRef[]; // bottom Source index — use fileRef("…")
+  files: FileRef[]; // tree + hover collection — use fileRef("…")
 };
 
 type MapEdge = {
@@ -156,7 +170,7 @@ type MapEdge = {
   to: string;
   label: string;    // ON edge chip (≤ 3 words)
   body: DocBlock[]; // sidebar — explain the dependency with code
-  files: FileRef[]; // traits, APIs, types, call sites
+  files: FileRef[]; // tree + hover collection
 };
 
 type Focus =
@@ -198,10 +212,10 @@ Render `body` as a vertical stack:
 | `prose` | `Text` with `richInline` (backtick splitter) at `typeScale.body` |
 | `code` | Resolve `fileRef(block.ref)` + `snippet(block.ref)`. Compact panel: ghost `Button` header (`path:line` → **preview popup**), optional caption, **`DiffView`**. See [code-preview.md](code-preview.md). |
 
-After all blocks: **Source** section listing `files` as ghost buttons (same as today).
+Do **not** add a separate Source footer — code block headers already open previews.
 
-**Node focus:** step pill, label, body blocks, Source, Prev/Next  
-**Edge focus:** "Dependency" pill, `label: from → to`, body blocks, Source, buttons to jump to endpoint nodes
+**Node focus:** step pill, label, body blocks  
+**Edge focus:** "Dependency" pill, `label: from → to`, body blocks
 
 Selecting a node or edge always opens the sidebar.
 
@@ -243,7 +257,6 @@ Wire `onMouseEnter` / `onMouseLeave` on:
 |--------|------------------------|
 | Map node card | `collectFiles(node)` |
 | Map edge `<g>` | `collectFiles(edge)` |
-| Sidebar Source button | `[file]` |
 | Sidebar code block (header + `DiffView` wrapper) | `[fileRef(block.ref)]` |
 
 On leave: `clearPreview()` — use `relatedTarget` containment checks when
@@ -254,7 +267,7 @@ moving between children (header → DiffView) to avoid flicker.
 | Layer | Source | Behavior |
 |-------|--------|----------|
 | `selectedPaths` | Focused node/edge `collectFiles(...)` | Sticky while selection remains |
-| `hoverPaths` | Mouse enter on node/edge/Source/code | Clears on leave; **adds** to selection highlights |
+| `hoverPaths` | Mouse enter on node/edge/code | Clears on leave; **adds** to selection highlights |
 
 Tree expands for `selectedPaths ∪ hoverPaths`. Collapse to compact top-level
 only when **both** are empty. Selected file rows use stronger fill; hover-only
@@ -262,7 +275,7 @@ rows use lighter fill. Both get accent border.
 
 Hover handlers must be on native DOM elements (`div`, `g`, etc.). Canvas
 `Button` / `Stack` do **not** forward `onMouseEnter` / `onMouseLeave` — wrap
-Source links and code panels in a `div` for preview wiring.
+code panels in a `div` for preview wiring.
 
 Click tree file row → **preview popup** (`previewFile({ path: absPath })`), not IDE.
 Pass `previewFile` / `onPreviewFiles` / `onClearPreview` into `renderDocBlocks`.
@@ -282,11 +295,11 @@ Code preview popup + `FILE_MAP` sync: [code-preview.md](code-preview.md)
 Teaser only on the card. Click → node focus + sidebar.
 **Do not** pan/translate the camera on node or edge click — only user pan/zoom/Fit moves the view.
 
-## Viewport (snake map)
+## Viewport (unified map)
 
-- Pan empty background; dotted background
-- Height resize handle under map
-- Zoom / Fit
+- Single full-bleed viewport; pan empty background; dotted background
+- Shared Zoom / Fit for arch + snake (no per-panel height resize)
+- Skip pan start on `[data-map-node]`, `[data-map-edge]`, overlay panels
 
 ## Inline code
 
@@ -310,6 +323,8 @@ function richInline(text: string): ReactNode[] {
 
 ## Anti-patterns
 
+- Flex three-column layout that **pushes** the map narrower (overlays float instead)
+- Separate arch and snake cameras / height resizers
 - Sidebar on the right **only** (detail belongs left; tree belongs right)
 - Canvas `Button` / `Stack` for hover — they don't forward mouse events; wrap in `div`/`g`
 - npm-importing `@pierre/trees`, `@pierre/diffs`, or `beautiful-mermaid` into `.canvas.tsx`

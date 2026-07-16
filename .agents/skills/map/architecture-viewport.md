@@ -1,54 +1,57 @@
 # Architecture viewport — required contract
 
-Every map’s Mermaid architecture panel must satisfy this contract. Do **not**
+Every map’s Mermaid architecture region must satisfy this contract. Do **not**
 ship a static `overflow: auto` SVG box.
 
-Helpers and interaction below are **already in the host scaffold**
-([`app/src/Map.tsx`](app/src/Map.tsx) / [`scaffold.canvas.tsx`](scaffold.canvas.tsx)).
-Keep that chrome; do not invent a simpler viewport. If forking the panel,
-preserve this contract end-to-end (canvases cannot import sibling files, so any
-fork must carry the helpers inline).
+Architecture lives **inside the unified map camera** in
+([`app/src/Map.tsx`](app/src/Map.tsx) / [`scaffold.canvas.tsx`](scaffold.canvas.tsx))
+— stacked above the snake flowchart in one full-bleed `data-map-viewport`.
+Do not invent a second pan/zoom box. If forking, preserve this contract
+end-to-end (canvases cannot import sibling files, so any fork must carry the
+helpers inline).
 
 ## Forbidden (regressions we already hit)
 
 | Anti-pattern | Why it fails |
 |--------------|--------------|
-| `<div style={{ overflow: "auto", maxHeight }} dangerouslySetInnerHTML={svg} />` | No pan, no zoom, no vertical resize |
+| `<div style={{ overflow: "auto", maxHeight }} dangerouslySetInnerHTML={svg} />` | No pan, no zoom |
 | Embedding SVG with `width="100%"` as the camera world | Pan/zoom fights layout scaling |
 | Activating hotspots with `onClick` / `e.target` after `setPointerCapture` | Capture **retargets** `pointerup` to the viewport — nodes look dead |
 | Ignoring selection in the SVG | Reader loses the link between map focus and the diagram |
 | Viewport always `cursor: grab` | Hotspots feel non-interactive |
+| Separate arch camera (`archView`) + snake camera (`view`) | Breaks the single full-bleed world |
+| Per-panel height resize (`archViewportH` / `viewportH`) | Dead space; shell is `100vh` |
 
 ## Required UX checklist
 
-Before delivering a map, verify **all** of these on the architecture panel:
+Before delivering a map, verify **all** of these on the unified viewport:
 
-- [ ] Zoom − / Zoom + / Fit buttons + zoom % label
-- [ ] Wheel zooms; drag empty background pans
+- [ ] Zoom − / Zoom + / Fit buttons + zoom % label (floating toolbar)
+- [ ] Ctrl/Cmd+wheel zooms (plain wheel does not); drag empty background pans (shared camera)
 - [ ] Click-without-drag on a hotspot selects the mapped node/edge (sidebar opens)
 - [ ] Pan does **not** select (use `didPan` threshold ~3px)
-- [ ] Bottom `data-arch-resize` handle changes height (`archViewportH`, clamp ~220–900)
-- [ ] SVG rendered at **intrinsic viewBox** size inside a `translate + scale` world layer
+- [ ] Arch SVG and snake nodes share one `view` transform; snake offset by `ARCH_SNAKE_GAP`
+- [ ] SVG rendered at **intrinsic viewBox** size inside the world layer (`data-arch-world`)
 - [ ] Focused hotspot has accent stroke (+ light accent fill on first rect)
 - [ ] Hovering a hotspot shows `cursor: pointer`; elsewhere `grab`; while dragging `grabbing`
 - [ ] Diagram pills reset camera via Fit when switching diagrams
-- [ ] Hotspot chips still work; hover chips → `previewFiles`
+- [ ] SVG hotspot click still selects mapped node/edge (no toolbar hotspot chips)
+- [ ] Pan does not start on `[data-map-node]` / `[data-map-edge]` / overlay panels
 
 ## Constants
 
 ```ts
-const MIN_ARCH_H = 220;
-const MAX_ARCH_H = 900;
-const DEFAULT_ARCH_H = 360;
-const MIN_ARCH_ZOOM = 0.4;
-const MAX_ARCH_ZOOM = 2.5;
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 2.5;
+const ARCH_SNAKE_GAP = 100;
 ```
 
 Persist:
 
-- `useCanvasState("archDiagram", …)`
-- `useCanvasState("archView", { x, y, zoom })`
-- `useCanvasState("archViewportH", DEFAULT_ARCH_H)`
+- `useCanvasState("archDiagram", …)` — active Mermaid tab
+- `useCanvasState("view", { x, y, zoom })` — **shared** camera for arch + snake
+
+Do **not** persist separate `archView` or `archViewportH` / `viewportH`.
 
 ## Helpers (in scaffold; preserve if forking)
 
@@ -132,12 +135,12 @@ const activeLabels = useMemo(
 const cameraSvg = useMemo(
   () =>
     svgWithHotspotChrome(
-      svgForCamera(diagram.svg, world.w, world.h),
+      svgForCamera(diagram.svg, archWorld.w, archWorld.h),
       diagram.hotspots,
       activeLabels,
       theme.accent.primary,
     ),
-  [diagram.svg, diagram.hotspots, world.w, world.h, activeLabels, theme.accent.primary],
+  [diagram.svg, diagram.hotspots, archWorld.w, archWorld.h, activeLabels, theme.accent.primary],
 );
 ```
 
@@ -162,9 +165,12 @@ function hitFromEvent(target: Element): ArchHotspot | null {
 
 ## Pointer capture — click activation (critical)
 
-`setPointerCapture` on the viewport is required for reliable pan, but it
+`setPointerCapture` on the unified viewport is required for reliable pan, but it
 **retargets** subsequent events to the viewport. Never use `e.target` from
 `pointerup` alone.
+
+Skip pan start when the target is inside
+`[data-map-node], [data-map-edge], [data-sidebar-resize], [data-tree-resize], [data-map-sidebar], [data-map-tree]`.
 
 Required pattern:
 
@@ -173,13 +179,14 @@ const didPanRef = useRef(false);
 const downTargetRef = useRef<Element | null>(null);
 
 onPointerDown={(e) => {
+  if (panStartBlocked(e.target as Element)) return;
   didPanRef.current = false;
   downTargetRef.current = e.target as Element;
   // … store drag origin, setPointerCapture …
 }}
 
 onPointerMove={(e) => {
-  // if dragging: update archView; set didPanRef if movement > 3px
+  // if dragging: update view; set didPanRef if movement > 3px
   // else: updateHoverCursor(e.clientX, e.clientY)
 }}
 
@@ -190,7 +197,7 @@ onPointerUp={(e) => {
     const hit =
       (under ? hitFromEvent(under) : null) ??
       (downTargetRef.current ? hitFromEvent(downTargetRef.current) : null);
-    if (hit) activate(hit);
+    if (hit) activateHotspot(hit);
   }
   downTargetRef.current = null;
   didPanRef.current = false;
@@ -209,55 +216,42 @@ cursor: dragging ? "grabbing" : overHotspot ? "pointer" : "grab"
 `overHotspot` from `elementFromPoint` + `hitFromEvent` while **not** dragging;
 clear on `pointerLeave` and while a pan is active.
 
-## Vertical resize
-
-Sibling under the viewport (not inside the capture target):
+## World layout (arch + snake)
 
 ```tsx
-<div
-  data-arch-resize
-  title="Drag to resize architecture height"
-  onPointerDown={/* capture; store { py, height: archH } */}
-  onPointerMove={/* setArchH(clamp(origin.height + dy, MIN_ARCH_H, MAX_ARCH_H)) */}
-  onPointerUp={/* release */}
-  style={{ height: 12, cursor: "ns-resize", /* bar chrome */ }}
-/>
-```
-
-## Viewport shell
-
-```tsx
-<div
-  data-arch-viewport
-  style={{
-    position: "relative",
-    width: "100%",
-    height: archH,
-    overflow: "hidden",
-    /* dotted bg, grab/pointer/grabbing cursor */
-  }}
-  /* pointer handlers as above */
-  onWheel={(e) => setArchZoom(archView.zoom + (e.deltaY > 0 ? -0.08 : 0.08))}
->
+<div data-map-viewport /* absolute inset 0; dotted bg; pointer handlers */>
   <div
     style={{
       position: "absolute",
-      left: 0,
-      top: 0,
-      width: world.w,
-      height: world.h,
-      transform: `translate(${archView.x}px, ${archView.y}px) scale(${archView.zoom})`,
+      transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
       transformOrigin: "0 0",
-      padding: 8,
-      boxSizing: "content-box",
+      width: worldW,
+      height: worldH,
     }}
-    dangerouslySetInnerHTML={{ __html: cameraSvg }}
-  />
+  >
+    <div
+      data-arch-world
+      style={{ position: "absolute", left: 0, top: 0, width: archWorld.w, height: archWorld.h }}
+      dangerouslySetInnerHTML={{ __html: cameraSvg }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: archWorld.h + ARCH_SNAKE_GAP,
+        width: layout.width,
+        height: layout.height,
+      }}
+    >
+      {/* snake SVG edges + HTML nodes */}
+    </div>
+  </div>
 </div>
 ```
 
 ## Toolbar
 
-Toolbar should expose Zoom − / Zoom + / Fit (and zoom %) and surface the
-viewport affordances: pan, scroll-zoom, bottom-edge resize, click shape/chip to
-focus the map sidebar. Exact wording is not mandated.
+Floating toolbar sits bottom-center over the diagram (`data-map-toolbar`):
+icon Zoom/Fit/Prev/Next (and zoom %). Affordances: pan empty background,
+Ctrl/Cmd+wheel zoom (or icon buttons), click SVG hotspot/shape to focus the
+overlay sidebar. Exact wording is not mandated.

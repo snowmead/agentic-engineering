@@ -2,8 +2,11 @@
 
 ## Unreleased
 
-- **Grok:** `grok plugin install primitives --trust` failed with `No marketplace plugin named "primitives"` because `.grok-plugin/marketplace.json` used a local `./` source (`{"type":"local","path":"./"}`). Grok only indexes remote marketplace entries for name install; the catalog now uses a URL source (`https://github.com/snowmead/agentic-engineering.git`), matching xAI Official / oxgraph.
+## 0.2.2 — 2026-07-16
+
+- **map:** full-bleed unified pan/zoom chrome for Canvas and Bun hosts — one camera world (Mermaid architecture + snake), floating overlays, bottom-center toolbar with larger icons, inline sidebar title/close, page scroll lock, `OVERLAY_INSET` sidebars, hover-only scrollbars, file-tree subtitle removed, tree background aligned with sidebar, IBM Plex on Bun `index.html` plus canvas-safe font stacks, host `IconButton` `disabled` support and `FileTreePanel` chrome tweaks; `sync-file-map` uses `lastIndexOf` for end markers; docs (SKILL.md, canvas-pattern, architecture-viewport, code-preview) and C4-style architecture notes updated.
 - **map:** Canvas scaffold no longer emits `import * as MapHost from "cursor/canvas"` (runtime `MapHost is not defined`). Generator strips the Bun host namespace import and always uses inlined `BuiltinFileTreePanel`; `--check` rejects namespace imports in the scaffold.
+- **Grok:** `grok plugin install primitives --trust` failed with `No marketplace plugin named "primitives"` because `.grok-plugin/marketplace.json` used a local `./` source (`{"type":"local","path":"./"}`). Grok only indexes remote marketplace entries for name install; the catalog now uses a URL source (`https://github.com/snowmead/agentic-engineering.git`), matching xAI Official / oxgraph.
 - **Plugins:** fix Claude Code + Grok install failure (`Validation errors: agents: Invalid input, mcpServers: Invalid input`) that blocked the whole plugin — including `/primitives-setup`, the oxcode/Parallel Search MCP servers, and the cartographer agent. `agents` was a directory string/array (`"./agents/"`) but the field takes individual files, and `mcpServers` was `.mcp.json` without the required leading `./`. Both manifests now declare only the non-standard `skills` path (`["./.agents/skills/"]`) and let Claude/Grok auto-discover `agents/`, `commands/`, and the root `.mcp.json` — matching Codex (already correct) and the official Anthropic/oxcode plugins. Cursor uses its own schema where the previous forms are valid and is unchanged.
 
 ## 0.2.1 — 2026-07-15
