@@ -884,21 +884,20 @@ function CodePreviewModal({
     setContentH(0);
   }, [file.path, start]);
 
-  // Pixel viewport height so flex children can shrink and scroll.
+  // Measure the flex-allocated viewport (header/footer keep their natural height).
   useEffect(() => {
-    function measureShell() {
-      const shell = dialogRef.current?.querySelector(
-        "[data-map-preview]",
-      ) as HTMLElement | null;
-      if (!shell) return;
-      const shellH = shell.getBoundingClientRect().height;
-      // header ~40 + optional missing-content callout + padding
-      const chrome = !content ? 100 : 52;
-      setViewportH(Math.max(200, Math.floor(shellH - chrome)));
-    }
-    measureShell();
-    window.addEventListener("resize", measureShell);
-    return () => window.removeEventListener("resize", measureShell);
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const measure = () =>
+      setViewportH(Math.max(120, Math.floor(vp.getBoundingClientRect().height)));
+    measure();
+    window.addEventListener("resize", measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro.disconnect();
+    };
   }, [content, file.path]);
 
   useEffect(() => {
@@ -965,9 +964,11 @@ function CodePreviewModal({
   }, [onClose]);
 
   const footerCallout = !content ? (
-    <Callout tone="info" style={{ margin: 8 }}>
-      Contents not embedded. Open in editor for the full file.
-    </Callout>
+    <div style={{ flexShrink: 0 }}>
+      <Callout tone="info" style={{ margin: 8 }}>
+        Contents not embedded. Open in editor for the full file.
+      </Callout>
+    </div>
   ) : null;
 
   const modalH =
@@ -1045,11 +1046,11 @@ function CodePreviewModal({
           data-map-preview-scroll
           data-map-preview-line-count={lines.length}
           style={{
-            height: viewportH,
+            flex: 1,
+            minHeight: 0,
             overflow: "hidden",
             position: "relative",
             background: theme.bg.editor,
-            flexShrink: 0,
           }}
         >
           <div
