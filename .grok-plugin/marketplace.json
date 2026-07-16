@@ -11,8 +11,8 @@
       "description": "Reusable agent primitives — skills and tools for coding agents.",
       "category": "development",
       "source": {
-        "type": "local",
-        "path": "./"
+        "source": "url",
+        "url": "https://github.com/snowmead/agentic-engineering.git"
       },
       "homepage": "https://github.com/snowmead/agentic-engineering",
       "keywords": [
