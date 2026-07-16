@@ -450,10 +450,14 @@ function previewModalLineWindow(
   let from = Math.max(0, focusStart - 1 - PREVIEW_MODAL_CONTEXT);
   let to = Math.min(totalLines, focusEnd + PREVIEW_MODAL_CONTEXT);
   if (to - from > PREVIEW_MODAL_LINE_CAP) {
-    const mid = Math.floor((focusStart + focusEnd) / 2);
-    from = Math.max(0, mid - 1 - Math.floor(PREVIEW_MODAL_LINE_CAP / 2));
+    // Prefer keeping focusStart in-window over centering a too-wide range.
+    from = Math.max(0, focusStart - 1 - PREVIEW_MODAL_CONTEXT);
     to = Math.min(totalLines, from + PREVIEW_MODAL_LINE_CAP);
     from = Math.max(0, to - PREVIEW_MODAL_LINE_CAP);
+    if (focusStart - 1 < from) {
+      from = Math.max(0, focusStart - 1);
+      to = Math.min(totalLines, from + PREVIEW_MODAL_LINE_CAP);
+    }
   }
   return {
     from,
@@ -846,6 +850,7 @@ function CodePreviewModal({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const offsetRef = useRef(0);
   const userScrolledRef = useRef(false);
+  const focusReadyRef = useRef(false);
   const [offset, setOffset] = useState(0);
   const [viewportH, setViewportH] = useState(560);
   const [contentH, setContentH] = useState(0);
@@ -871,6 +876,7 @@ function CodePreviewModal({
   // New file / focus target: clear scroll so stale offsets cannot leak.
   useEffect(() => {
     userScrolledRef.current = false;
+    focusReadyRef.current = start == null;
     offsetRef.current = 0;
     setOffset(0);
     setContentH(0);
@@ -915,7 +921,14 @@ function CodePreviewModal({
         ? Math.max(0, focusIdx * lineH - 72)
         : Math.max(0, (start - 1) * lineH - 72);
     applyOffset(next);
+    focusReadyRef.current = true;
   }, [file.path, start, contentH, lines.length, maxOffset]);
+
+  // Keep translateY valid when viewport/content metrics change after scrolling.
+  useEffect(() => {
+    if (!userScrolledRef.current) return;
+    applyOffset(offsetRef.current);
+  }, [maxOffset]);
 
   // Wheel → translateY; avoids overflow/scrollTop in canvas hosts.
   useEffect(() => {
@@ -930,7 +943,8 @@ function CodePreviewModal({
       if (!over) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      userScrolledRef.current = true;
+      // Don't treat pre-measure wheels as user scroll — focus jump still needs to run.
+      if (focusReadyRef.current) userScrolledRef.current = true;
       applyOffset(offsetRef.current + e.deltaY);
     };
     dialog.addEventListener("wheel", onWheel, { passive: false, capture: true });
