@@ -3,7 +3,7 @@
 ## Unreleased
 
 - **map:** Canvas scaffold no longer emits `import * as MapHost from "cursor/canvas"` (runtime `MapHost is not defined`). Generator strips the Bun host namespace import and always uses inlined `BuiltinFileTreePanel`; `--check` rejects namespace imports in the scaffold.
-- **Plugins:** restore Cursor `commands` to `./commands/`; declare the same path on Claude (`["./commands/"]`) and Grok (`"./commands/"`). Codex has no plugin slash-commands component — README documents manual oxcode install instead of `/primitives-setup`.
+- **Plugins:** fix Claude Code + Grok install failure (`Validation errors: agents: Invalid input, mcpServers: Invalid input`) that blocked the whole plugin — including `/primitives-setup`, the oxcode/Parallel Search MCP servers, and the cartographer agent. `agents` was a directory string/array (`"./agents/"`) but the field takes individual files, and `mcpServers` was `.mcp.json` without the required leading `./`. Both manifests now declare only the non-standard `skills` path (`["./.agents/skills/"]`) and let Claude/Grok auto-discover `agents/`, `commands/`, and the root `.mcp.json` — matching Codex (already correct) and the official Anthropic/oxcode plugins. Cursor uses its own schema where the previous forms are valid and is unchanged.
 
 ## 0.2.1 — 2026-07-15
 
