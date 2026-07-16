@@ -787,7 +787,9 @@ function focusSelectedLines(
         line.type === "modified",
     );
   if (focused.length === 0) return undefined;
-  const nums = focused.map(({ line, i }) => line.lineNumber ?? i + 1);
+  // Index into the contents string passed to Pierre — not absolute file lineNumbers
+  // (windowed previews keep absolute numbers for gutter display only).
+  const nums = focused.map(({ i }) => i + 1);
   return { start: Math.min(...nums), end: Math.max(...nums) };
 }
 

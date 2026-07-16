@@ -843,6 +843,7 @@ function CodePreviewModal({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const offsetRef = useRef(0);
+  const userScrolledRef = useRef(false);
   const [offset, setOffset] = useState(0);
   const [viewportH, setViewportH] = useState(560);
   const [contentH, setContentH] = useState(0);
@@ -864,6 +865,14 @@ function CodePreviewModal({
     offsetRef.current = clamped;
     setOffset(clamped);
   };
+
+  // New file / focus target: clear scroll so stale offsets cannot leak.
+  useEffect(() => {
+    userScrolledRef.current = false;
+    offsetRef.current = 0;
+    setOffset(0);
+    setContentH(0);
+  }, [file.path, start]);
 
   // Pixel viewport height so flex children can shrink and scroll.
   useEffect(() => {
@@ -892,9 +901,9 @@ function CodePreviewModal({
     return () => ro.disconnect();
   }, [file.path, lines]);
 
-  // Jump to focus range once content is measured.
+  // Jump to focus while the user has not scrolled; ignore remeasures after wheel.
   useEffect(() => {
-    if (start == null || contentH <= 0) return;
+    if (userScrolledRef.current || start == null || contentH <= 0) return;
     const lineH = contentH / Math.max(1, lines.length);
     const focusIdx = lines.findIndex(
       (l) => l.lineNumber != null && l.lineNumber >= start,
@@ -919,6 +928,7 @@ function CodePreviewModal({
       if (!over) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      userScrolledRef.current = true;
       applyOffset(offsetRef.current + e.deltaY);
     };
     dialog.addEventListener("wheel", onWheel, { passive: false, capture: true });
