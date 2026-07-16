@@ -16,8 +16,5 @@
     "mcp",
     "oxcode"
   ],
-  "skills": "./.agents/skills/",
-  "agents": "./agents/",
-  "commands": "./commands/",
-  "mcpServers": ".mcp.json"
+  "skills": ["./.agents/skills/"]
 }
