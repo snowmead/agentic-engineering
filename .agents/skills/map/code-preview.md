@@ -9,8 +9,8 @@ referenced file’s full text at author time in `FILE_CONTENTS`.
 
 ## Single source of truth: `FILE_MAP`
 
-Every code path, sidebar excerpt, Source footer entry, **file tree path**, and
-preview body **derives from one global registry** — `FILE_MAP`.
+Every code path, sidebar excerpt, **file tree path**, and preview body
+**derives from one global registry** — `FILE_MAP`.
 
 ```tsx
 // <map:file-map>
@@ -79,11 +79,15 @@ What the script does:
 
 **Ship rule:** `--check` must pass before delivering a map.
 
+Marker rewrite uses the **first** begin marker and the **last** end marker for
+`FILE_CONTENTS` / `MAP_PATHS`, so embedding a source file that itself contains
+those comment markers (e.g. `Map.tsx`) does not truncate the block.
+
 ## UX
 
 | Action | Result |
 |--------|--------|
-| Click path header / Source row / file-tree file / sidebar code panel | Open preview modal |
+| Click path header / file-tree file / sidebar code panel | Open preview modal |
 | Preview modal | Full file via `DiffView`; focus lines marked `type: "added"` + accent strip; auto-scroll to range |
 | Diagonal-arrow `IconButton` in modal header | `dispatch({ type: "openFile", path, selection })` |
 | Backdrop click / Close / Escape | Dismiss modal |

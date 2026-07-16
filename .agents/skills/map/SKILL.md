@@ -18,10 +18,11 @@ metadata:
 
 # Map
 
-Produce a **navigable spatial map**: wrapped rows, concise node teasers,
-**clickable edges** (dependencies), a **left resizable sidebar** with
-interleaved prose + code excerpts + file backlinks, and a **right file tree**
-built from every path referenced in the map.
+Produce a **navigable spatial map**: one full-bleed pan/zoom world (Mermaid
+architecture + snake flowchart), concise node teasers, **clickable edges**
+(dependencies), a **floating left sidebar** with interleaved prose + code
+excerpts + file backlinks, and a **floating right file tree** built from every
+path referenced in the map.
 
 ## Host selection
 
@@ -123,11 +124,11 @@ bun run verify
 
 `verify` checks MapView naming (no `Map` shadow), SSR render, Vite worker
 chunk emission, pierre DiffView wiring, and scaffold sync.
-7. **Optional depth (after the React Flow section only).** The map ends the
-   durable UI with a comment `Add more context below.` Agents **may** insert
-   extra sections after that comment when they help the reader. Nothing there is
-   required — do **not** add a ritual “Gotchas” block. Mermaid + the React Flow
-   map are the only always-on top-level sections.
+7. **Optional depth (after the map shell only).** The map ends the durable UI
+   with a comment `Add more context below.` Agents **may** insert extra sections
+   after that comment when they help the reader. Nothing there is required —
+   do **not** add a ritual “Gotchas” block. The full-bleed unified map (Mermaid
+   + snake in one camera) is the only always-on top-level section.
 8. **Ship only if** the Quality bar below passes.
    Never deliver the scaffold’s placeholder nodes/paths as a finished map.
 
@@ -161,10 +162,15 @@ kind that matches the question:
 | Question | Mermaid kind | Example |
 |----------|--------------|---------|
 | How do stages connect? | `flowchart` / `graph TD` | provision pipeline |
+| What are the containers / externals? | `c4` (author as `flowchart` with Person / System / External subgraphs; set `kind: "c4"`) | plugin + MCP + canvas |
 | Who calls whom, in order? | `sequenceDiagram` | substrate → registry → ops |
 | What types / traits? | `classDiagram` | Hostable / CatalogResource / ProviderOps |
 | What persists where? | `erDiagram` | tables / resources |
 | What states can it be in? | `stateDiagram-v2` | lifecycle / checkpoint |
+
+`beautiful-mermaid` does **not** parse native `C4Container` syntax — for C4-style
+architecture, render a `flowchart` with labeled subgraphs and store
+`kind: "c4"` on the `ArchDiagram` for the toolbar pill.
 
 ### Authoring workflow
 
@@ -180,8 +186,9 @@ bun render-mermaid.mjs --json --file diagrams.json > rendered.json
 ```
 
 4. Embed `svg` strings into `ARCH_DIAGRAMS` (no runtime import).
-5. **Keep `ArchitecturePanel` per [architecture-viewport.md](architecture-viewport.md)**
-   (already in the shared UI). Do not invent a simpler SVG box.
+5. **Keep the arch SVG in the unified camera** per
+   [architecture-viewport.md](architecture-viewport.md) (already in `MapView`).
+   Do not invent a second viewport or static SVG box.
 6. Wire code preview per [code-preview.md](code-preview.md): author **`FILE_MAP`**
    (every path/range), use `fileRef` / `snippet` / `{ type: "code", ref }`, then
    one update for previews + file tree:
@@ -194,7 +201,7 @@ bun update.ts --file "$MAP_FILE" --check
 
 7. Wire the rest:
    - Tab / pills to switch diagram kinds (Fit on switch)
-   - Hotspot chips → `selectNode` / `selectEdge` + `previewFiles` on hover
+   - SVG hotspots → `selectNode` / `selectEdge` (click shapes in the arch region)
 
 Architecture pan/zoom/hotspot quality:
 [architecture-viewport.md § Required UX checklist](architecture-viewport.md#required-ux-checklist).
@@ -212,7 +219,7 @@ Architecture pan/zoom/hotspot quality:
 | Edge gaps | Generous (`GAP_X` ≥ 90, `GAP_Y` ≥ 100); labels sit in a chip clear of nodes |
 
 **Surfaces:** node/edge chips stay short; detail lives in the sidebar
-(`body: DocBlock[]` + Source + Prev/Next or endpoint jumps). File tree (right)
+(`body: DocBlock[]` + Source). File tree (right)
 lists nested paths from all `FileRef`s — compact by default; hover expands
 ancestors.
 

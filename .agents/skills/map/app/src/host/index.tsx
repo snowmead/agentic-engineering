@@ -329,17 +329,20 @@ export function IconButton({
   title,
   style,
   children,
+  disabled,
 }: {
   onClick?: () => void;
   title?: string;
   style?: CSSProperties;
   children?: ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       title={title}
-      onClick={onClick}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -351,7 +354,8 @@ export function IconButton({
         border: "1px solid transparent",
         background: "transparent",
         color: HOST_THEME.text.secondary,
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.4 : 1,
         ...style,
       }}
     >
@@ -555,39 +559,47 @@ export function FileTreePanel({
         boxSizing: "border-box",
         height,
         overflow: "hidden",
-        borderRadius: "0 8px 8px 0",
-        border: `1px solid ${theme.stroke.secondary}`,
-        borderLeft: "none",
+        borderRadius: 0,
+        border: "none",
         background: theme.bg.elevated,
         display: "flex",
         flexDirection: "column",
         gap: 8,
         padding: "12px 10px",
+        fontFamily:
+          '"IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <span
-          style={{
-            fontWeight: 600,
-            fontSize: 12,
-            color: theme.text.primary,
-          }}
-        >
-          Files in this map
-        </span>
-        <span style={{ fontSize: 10, color: theme.text.tertiary }}>
-          {relPaths.length} file{relPaths.length === 1 ? "" : "s"} · selection
-          sticks · hover adds more · drag left edge to resize
-        </span>
-      </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <span
+        style={{
+          fontWeight: 600,
+          fontSize: 14,
+          color: theme.text.primary,
+        }}
+      >
+        Files in this map
+      </span>
+      <div
+        data-map-tree-scroll
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          background: theme.bg.elevated,
+        }}
+      >
         <PierreFileTreeView
           model={model}
           style={{
             height: "100%",
             width: "100%",
+            // Match the map sidebar chrome — pierre falls back to #141415.
             backgroundColor: theme.bg.elevated,
             color: theme.text.primary,
+            ["--trees-theme-sidebar-bg" as string]: theme.bg.elevated,
+            ["--trees-bg-override" as string]: theme.bg.elevated,
           }}
         />
       </div>

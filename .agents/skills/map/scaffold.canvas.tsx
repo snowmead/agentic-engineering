@@ -10,7 +10,6 @@ import {
   Button,
   Code,
   DiffView,
-  H1,
   IconButton,
   Pill,
   Row,
@@ -69,7 +68,7 @@ type ArchHotspot = { label: string; nodeId?: string; edgeKey?: string };
 type ArchDiagram = {
   id: string;
   title: string;
-  kind: "flowchart" | "sequence" | "class" | "er" | "state";
+  kind: "flowchart" | "sequence" | "class" | "er" | "state" | "c4";
   svg: string;
   hotspots: ArchHotspot[];
 };
@@ -82,7 +81,7 @@ const ARCH_DIAGRAMS: ArchDiagram[] = [
     kind: "flowchart",
     svg:
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" width="100%" height="auto" style="--bg:#1e1e1e;--fg:#d4d4d4;--accent:#3794ff">' +
-      '<style>text { font-family: system-ui, sans-serif; }</style>' +
+      '<style>text { font-family: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }</style>' +
       '<g class="node" data-id="entry" data-label="Entry point">' +
       '<rect x="20" y="20" width="160" height="40" rx="4" fill="color-mix(in srgb, var(--fg,#d4d4d4) 3%, var(--bg,#1e1e1e))" stroke="color-mix(in srgb, var(--fg,#d4d4d4) 20%, var(--bg,#1e1e1e))" stroke-width="1" />' +
       '<text x="100" y="45" text-anchor="middle" font-size="13" fill="var(--fg,#d4d4d4)">Entry point</text>' +
@@ -166,22 +165,91 @@ const GAP_X = 100;
 const GAP_Y = 110;
 const PAD = 40;
 const COLS = 3;
-const MIN_ZOOM = 0.55;
-const MAX_ZOOM = 1.55;
-const MIN_VIEWPORT_H = 360;
-const MAX_VIEWPORT_H = 1400;
-const DEFAULT_VIEWPORT_H = 580;
-const MIN_ARCH_H = 220;
-const MAX_ARCH_H = 900;
-const DEFAULT_ARCH_H = 360;
-const MIN_ARCH_ZOOM = 0.4;
-const MAX_ARCH_ZOOM = 2.5;
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 2.5;
+const ARCH_SNAKE_GAP = 100;
 const MIN_SIDEBAR_W = 240;
 const MAX_SIDEBAR_W = 900;
 const DEFAULT_SIDEBAR_W = 320;
 const MIN_TREE_W = 200;
 const MAX_TREE_W = 720;
 const DEFAULT_TREE_W = 280;
+/** Gap between floating overlays and the viewport edges. */
+const OVERLAY_INSET = 14;
+/** Canvas-safe UI stack — Bun host loads IBM Plex via index.html. */
+const UI_FONT =
+  '"IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+const MONO_FONT =
+  '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+
+/** Hover-only overlay scrollbars for left detail + right file tree. */
+const SIDEBAR_SCROLLBAR_CSS = `
+[data-map-sidebar] aside,
+[data-map-tree] aside,
+[data-map-tree] [data-map-tree-scroll] {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+[data-map-sidebar]:hover aside,
+[data-map-sidebar]:focus-within aside,
+[data-map-tree]:hover aside,
+[data-map-tree]:focus-within aside,
+[data-map-tree]:hover [data-map-tree-scroll],
+[data-map-tree]:focus-within [data-map-tree-scroll] {
+  scrollbar-color: color-mix(in srgb, currentColor 35%, transparent) transparent;
+}
+[data-map-sidebar] aside::-webkit-scrollbar,
+[data-map-tree] aside::-webkit-scrollbar,
+[data-map-tree] [data-map-tree-scroll]::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+[data-map-sidebar] aside::-webkit-scrollbar-track,
+[data-map-tree] aside::-webkit-scrollbar-track,
+[data-map-tree] [data-map-tree-scroll]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-map-sidebar] aside::-webkit-scrollbar-thumb,
+[data-map-tree] aside::-webkit-scrollbar-thumb,
+[data-map-tree] [data-map-tree-scroll]::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+[data-map-sidebar]:hover aside::-webkit-scrollbar-thumb,
+[data-map-sidebar]:focus-within aside::-webkit-scrollbar-thumb,
+[data-map-tree]:hover aside::-webkit-scrollbar-thumb,
+[data-map-tree]:focus-within aside::-webkit-scrollbar-thumb,
+[data-map-tree]:hover [data-map-tree-scroll]::-webkit-scrollbar-thumb,
+[data-map-tree]:focus-within [data-map-tree-scroll]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 35%, transparent);
+}
+/* Pierre / nested scrollers inside the tree panel */
+[data-map-tree] [data-map-tree-scroll] * {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+[data-map-tree]:hover [data-map-tree-scroll] *,
+[data-map-tree]:focus-within [data-map-tree-scroll] * {
+  scrollbar-color: color-mix(in srgb, currentColor 35%, transparent) transparent;
+}
+[data-map-tree] [data-map-tree-scroll] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+[data-map-tree] [data-map-tree-scroll] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-map-tree] [data-map-tree-scroll] *::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+[data-map-tree]:hover [data-map-tree-scroll] *::-webkit-scrollbar-thumb,
+[data-map-tree]:focus-within [data-map-tree-scroll] *::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 35%, transparent);
+}
+`;
 
 const NODES: MapNode[] = [
   {
@@ -208,7 +276,7 @@ const NODES: MapNode[] = [
     body: [
       {
         type: "prose",
-        text: "Add FILE_MAP entries for every code block and Source footer link. Prose-only sidebars are an anti-pattern.",
+        text: "Add FILE_MAP entries for every code block. Prose-only sidebars are an anti-pattern.",
       },
     ],
     files: [],
@@ -308,9 +376,24 @@ function fileToPreviewLines(
   });
 }
 
+/** Toolbar / chrome glyphs — larger than IconButton's default 14px insets. */
+const CHROME_ICON = 20;
+/** IconButton only exposes sm/md (≤20px); enlarge the hit target for the map toolbar. */
+const TOOLBAR_ICON_BTN: CSSProperties = {
+  width: 36,
+  height: 36,
+  minWidth: 36,
+  minHeight: 36,
+};
+
 function OpenExternalIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
       <path
         d="M5 3.5h7.5V11M12.5 3.5L3.5 12.5"
         fill="none"
@@ -318,6 +401,167 @@ function OpenExternalIcon() {
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ZoomOutIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <circle
+        cx="7"
+        cy="7"
+        r="4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M5 7h4M10.5 10.5L14 14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ZoomInIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <circle
+        cx="7"
+        cy="7"
+        r="4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M5 7h4M7 5v4M10.5 10.5L14 14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function FitIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.5 5.5V2.5H5.5M10.5 2.5H13.5V5.5M13.5 10.5V13.5H10.5M5.5 13.5H2.5V10.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <path
+        d="M10 3.5L5.5 8L10 12.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <path
+        d="M6 3.5L10.5 8L6 12.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SidebarIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <rect
+        x="2.5"
+        y="2.5"
+        width="11"
+        height="11"
+        rx="1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M6.5 2.5v11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width={CHROME_ICON}
+      height={CHROME_ICON}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <path
+        d="M4 4l8 8M12 4l-8 8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -402,7 +646,7 @@ function CodePreviewModal({
             weight="semibold"
             style={{
               flex: 1,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontFamily: MONO_FONT,
               fontSize: 12,
               color: theme.text.primary,
               overflow: "hidden",
@@ -642,8 +886,7 @@ function renderDocBlocks(
                   >
                     <Text
                       style={{
-                        fontFamily:
-                          "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontFamily: MONO_FONT,
                         color: theme.text.link,
                         fontSize: typeScale.code,
                         textAlign: "left",
@@ -810,7 +1053,9 @@ function renderTreeDir(
   hoverPaths: string[],
   theme: ReturnType<typeof useHostTheme>,
   previewFile: (ref: FileRef) => void,
+  typeScale: ReturnType<typeof sidebarType>,
 ): ReactNode {
+  const treeLabelSize = typeScale.body + 1;
   const activePaths = [...new Set([...selectedPaths, ...hoverPaths])];
   const entries = [...dir.children.entries()].sort((a, b) => {
     const aDir = a[1].kind === "dir";
@@ -844,10 +1089,9 @@ function renderTreeDir(
             }}
           >
             <Text
-              size="small"
               style={{
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                fontSize: 11,
+                fontFamily: MONO_FONT,
+                fontSize: treeLabelSize,
                 color: theme.text.secondary,
                 flex: 1,
                 overflow: "hidden",
@@ -859,8 +1103,10 @@ function renderTreeDir(
             </Text>
             {!expanded && activePaths.length === 0 ? (
               <Text
-                size="small"
-                style={{ fontSize: 10, color: theme.text.quaternary }}
+                style={{
+                  fontSize: typeScale.meta,
+                  color: theme.text.quaternary,
+                }}
               >
                 {fileCount}
               </Text>
@@ -875,6 +1121,7 @@ function renderTreeDir(
                 hoverPaths,
                 theme,
                 previewFile,
+                typeScale,
               )
             : null}
         </div>
@@ -916,10 +1163,9 @@ function renderTreeDir(
         }}
       >
         <Text
-          size="small"
           style={{
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            fontSize: 11,
+            fontFamily: MONO_FONT,
+            fontSize: treeLabelSize,
             color: highlighted ? theme.accent.primary : theme.text.link,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -952,7 +1198,7 @@ function BuiltinFileTreePanel({
   previewFile: (ref: FileRef) => void;
 }) {
   const tree = buildTree(files.map((f) => f.absPath));
-  const totalFiles = countFiles(tree);
+  const typeScale = sidebarType(width);
 
   return (
     <aside
@@ -962,26 +1208,22 @@ function BuiltinFileTreePanel({
         boxSizing: "border-box",
         height,
         overflow: "auto",
-        borderRadius: "0 8px 8px 0",
-        border: `1px solid ${theme.stroke.secondary}`,
-        borderLeft: "none",
-        background: theme.bg.elevated,
+        borderRadius: 0,
+        border: "none",
+        background: "transparent",
         display: "flex",
         flexDirection: "column",
         gap: 8,
         padding: "12px 10px",
       }}
     >
-      <Stack gap={2}>
-        <Text weight="semibold" size="small">
-          Files in this map
-        </Text>
-        <Text size="small" tone="tertiary" style={{ fontSize: 10 }}>
-          {totalFiles} file{totalFiles === 1 ? "" : "s"} · selection sticks ·
-          hover adds more · drag left edge to resize
-        </Text>
-      </Stack>
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <Text
+        weight="semibold"
+        style={{ fontSize: typeScale.title, lineHeight: 1.3 }}
+      >
+        Files in this map
+      </Text>
+      <div data-map-tree-scroll style={{ flex: 1, minHeight: 0 }}>
         {renderTreeDir(
           tree,
           "",
@@ -990,6 +1232,7 @@ function BuiltinFileTreePanel({
           hoverPaths,
           theme,
           previewFile,
+          typeScale,
         )}
       </div>
     </aside>
@@ -1008,18 +1251,6 @@ function FileTreePanel(props: {
   // Canvas SDK has no FileTreePanel export — always use the inlined builtin.
   // (Bun host maps optionally swap in @pierre/trees via ./host.)
   return <BuiltinFileTreePanel {...props} />;
-}
-
-function resolveHotspotEntity(h: ArchHotspot): { files: FileRef[]; body: DocBlock[] } | null {
-  if (h.nodeId) {
-    const n = NODES.find((x) => x.id === h.nodeId);
-    return n ?? null;
-  }
-  if (h.edgeKey) {
-    const e = EDGES.find((x) => edgeKey(x.from, x.to) === h.edgeKey);
-    return e ?? null;
-  }
-  return null;
 }
 
 /** Intrinsic SVG size from viewBox — needed so pan/zoom isn't fighting width=100%. */
@@ -1062,7 +1293,9 @@ function svgWithHotspotChrome(
     .map((l) => `[data-label="${cssEscapeAttr(l)}"] > rect`)
     .join(", ");
 
-  const rules: string[] = [];
+  const rules: string[] = [
+    `text, tspan { font-family: ${UI_FONT}; }`,
+  ];
   if (pointerSel) {
     rules.push(`${pointerSel}, ${pointerSel} * { cursor: pointer; }`);
   }
@@ -1082,31 +1315,28 @@ function svgWithHotspotChrome(
   return svg.replace(/<svg([^>]*)>/, `<svg$1>${style}`);
 }
 
-function ArchitecturePanel({
-  theme,
-  focus,
-  onSelectNode,
-  onSelectEdge,
-  onPreviewFiles,
-  onClearPreview,
-}: {
-  theme: ReturnType<typeof useHostTheme>;
-  focus: Focus;
-  onSelectNode: (id: string) => void;
-  onSelectEdge: (key: string) => void;
-  onPreviewFiles: (refs: FileRef[]) => void;
-  onClearPreview: () => void;
-}) {
+export default function MapView() {
+  const theme = useHostTheme();
+  const dispatch = useCanvasAction();
+  const [focus, setFocus] = useCanvasState<Focus>("focus", {
+    kind: "node",
+    id: PATH[0],
+  });
+  const [view, setView] = useCanvasState<View>("view", {
+    x: 0,
+    y: 0,
+    zoom: 1,
+  });
   const [activeId, setActiveId] = useCanvasState(
     "archDiagram",
     ARCH_DIAGRAMS[0].id,
   );
-  const [archView, setArchView] = useCanvasState<View>("archView", {
-    x: 16,
-    y: 16,
-    zoom: 1,
-  });
-  const [archH, setArchH] = useCanvasState("archViewportH", DEFAULT_ARCH_H);
+  const [sidebarW, setSidebarW] = useCanvasState(
+    "sidebarW",
+    DEFAULT_SIDEBAR_W,
+  );
+  const [sidebarOpen, setSidebarOpen] = useCanvasState("sidebarOpen", true);
+  const [treeW, setTreeW] = useCanvasState("treeW", DEFAULT_TREE_W);
   const [dragging, setDragging] = useState(false);
   const [overHotspot, setOverHotspot] = useState(false);
   const dragOriginRef = useRef<{
@@ -1116,14 +1346,78 @@ function ArchitecturePanel({
     vy: number;
   } | null>(null);
   const didPanRef = useRef(false);
-  /** Saved on pointerdown — capture retargets pointerup to the viewport. */
   const downTargetRef = useRef<Element | null>(null);
-  const [resizingH, setResizingH] = useState(false);
-  const resizeHRef = useRef<{ py: number; height: number } | null>(null);
+  const [resizingW, setResizingW] = useState(false);
+  const [sidebarResizeHot, setSidebarResizeHot] = useState(false);
+  const resizeWRef = useRef<{ px: number; width: number } | null>(null);
+  const [resizingTreeW, setResizingTreeW] = useState(false);
+  const [treeResizeHot, setTreeResizeHot] = useState(false);
+  const resizeTreeWRef = useRef<{ px: number; width: number } | null>(null);
+  const [hoverPaths, setHoverPaths] = useState<string[]>([]);
+  const [filePreview, setFilePreview] = useState<FileRef | null>(null);
+  const [shellH, setShellH] = useState(
+    typeof window !== "undefined" ? window.innerHeight : 800,
+  );
+
+  useEffect(() => {
+    function onResize() {
+      setShellH(window.innerHeight);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  /** Lock page scroll — map is a single fixed viewport (CanvasShell + body). */
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById("root");
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      htmlHeight: html.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyHeight: body.style.height,
+      bodyMargin: body.style.margin,
+      rootOverflow: root?.style.overflow ?? "",
+      rootHeight: root?.style.height ?? "",
+    };
+    html.style.overflow = "hidden";
+    html.style.height = "100%";
+    body.style.overflow = "hidden";
+    body.style.height = "100%";
+    body.style.margin = "0";
+    if (root) {
+      root.style.overflow = "hidden";
+      root.style.height = "100%";
+    }
+    return () => {
+      html.style.overflow = prev.htmlOverflow;
+      html.style.height = prev.htmlHeight;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.height = prev.bodyHeight;
+      body.style.margin = prev.bodyMargin;
+      if (root) {
+        root.style.overflow = prev.rootOverflow;
+        root.style.height = prev.rootHeight;
+      }
+    };
+  }, []);
+
+  const panelH = Math.max(0, shellH - OVERLAY_INSET * 2);
+
+  const mapFiles = useMemo(
+    () =>
+      collectAllMapPaths().map((absPath) => ({
+        absPath,
+        relPath: relPath(absPath),
+      })),
+    [],
+  );
 
   const diagram =
     ARCH_DIAGRAMS.find((d) => d.id === activeId) ?? ARCH_DIAGRAMS[0];
-  const world = svgWorldSize(diagram.svg);
+  const archWorld = svgWorldSize(diagram.svg);
+  const snakeOffsetY = archWorld.h + ARCH_SNAKE_GAP;
 
   const activeLabels = useMemo(
     () =>
@@ -1140,34 +1434,69 @@ function ArchitecturePanel({
   const cameraSvg = useMemo(
     () =>
       svgWithHotspotChrome(
-        svgForCamera(diagram.svg, world.w, world.h),
+        svgForCamera(diagram.svg, archWorld.w, archWorld.h),
         diagram.hotspots,
         activeLabels,
         theme.accent.primary,
       ),
-    [diagram.svg, diagram.hotspots, world.w, world.h, activeLabels, theme.accent.primary],
+    [
+      diagram.svg,
+      diagram.hotspots,
+      archWorld.w,
+      archWorld.h,
+      activeLabels,
+      theme.accent.primary,
+    ],
   );
 
-  function activate(h: ArchHotspot) {
-    if (h.nodeId) onSelectNode(h.nodeId);
-    else if (h.edgeKey) onSelectEdge(h.edgeKey);
+  function previewFiles(refs: FileRef[]) {
+    setHoverPaths([...new Set(refs.map((r) => relPath(r.path)))]);
   }
 
-  function hotspotActive(h: ArchHotspot): boolean {
-    if (h.nodeId && focus.kind === "node") return focus.id === h.nodeId;
-    if (h.edgeKey && focus.kind === "edge") return focus.key === h.edgeKey;
-    return false;
+  function clearPreview() {
+    setHoverPaths([]);
   }
 
-  function setArchZoom(next: number) {
-    setArchView((v) => ({
-      ...v,
-      zoom: clamp(next, MIN_ARCH_ZOOM, MAX_ARCH_ZOOM),
-    }));
+  function previewFile(ref: FileRef) {
+    setFilePreview(ref);
   }
 
-  function fitArch() {
-    setArchView({ x: 16, y: 16, zoom: 1 });
+  const edgeMeta = new Map(
+    EDGES.map((e) => [edgeKey(e.from, e.to), e] as const),
+  );
+  const layout = layoutWrappedPath(PATH);
+  const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
+  const laidEdges = buildPathEdges(layout.nodes, edgeMeta);
+
+  const worldW = Math.max(archWorld.w + PAD, layout.width);
+  const worldH = archWorld.h + ARCH_SNAKE_GAP + layout.height;
+
+  const selectedNode =
+    focus.kind === "node"
+      ? (NODES.find((n) => n.id === focus.id) ?? NODES[0])
+      : null;
+  const selectedEdge =
+    focus.kind === "edge" ? (edgeMeta.get(focus.key) ?? null) : null;
+  const selectedEntity = selectedEdge ?? selectedNode ?? NODES[0];
+  const selectedPaths = [
+    ...new Set(collectFiles(selectedEntity).map((f) => relPath(f.path))),
+  ];
+  const pathIndex = selectedNode ? PATH.indexOf(selectedNode.id) : -1;
+  const typeScale = sidebarType(sidebarW);
+
+  function selectNode(id: string) {
+    setFocus({ kind: "node", id });
+    setSidebarOpen(true);
+  }
+
+  function selectEdge(key: string) {
+    setFocus({ kind: "edge", key });
+    setSidebarOpen(true);
+  }
+
+  function activateHotspot(h: ArchHotspot) {
+    if (h.nodeId) selectNode(h.nodeId);
+    else if (h.edgeKey) selectEdge(h.edgeKey);
   }
 
   function hitFromEvent(target: Element): ArchHotspot | null {
@@ -1194,313 +1523,10 @@ function ArchitecturePanel({
     setOverHotspot(!!(under && hitFromEvent(under)));
   }
 
-  return (
-    <Stack gap={10}>
-      <Stack gap={4}>
-        <Text weight="semibold">Architecture</Text>
-        <Text size="small" tone="secondary">
-          Pan · scroll to zoom · drag the bottom edge to resize · click a shape
-          or chip to focus the map sidebar.
-        </Text>
-      </Stack>
-      <Row gap={6} wrap align="center">
-        {ARCH_DIAGRAMS.map((d) => (
-          <Button
-            key={d.id}
-            variant={d.id === diagram.id ? "primary" : "secondary"}
-            onClick={() => {
-              setActiveId(d.id);
-              fitArch();
-            }}
-          >
-            {`${d.title} · ${d.kind}`}
-          </Button>
-        ))}
-        <Text size="small" tone="quaternary">
-          |
-        </Text>
-        <Button
-          variant="secondary"
-          onClick={() => setArchZoom(archView.zoom - 0.15)}
-        >
-          Zoom −
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => setArchZoom(archView.zoom + 0.15)}
-        >
-          Zoom +
-        </Button>
-        <Button variant="secondary" onClick={fitArch}>
-          Fit
-        </Button>
-        <Text size="small" tone="tertiary">
-          {Math.round(archView.zoom * 100)}%
-        </Text>
-      </Row>
-
-      <div>
-        <div
-          data-arch-viewport
-          style={{
-            position: "relative",
-            width: "100%",
-            height: archH,
-            overflow: "hidden",
-            borderRadius: "8px 8px 0 0",
-            border: `1px solid ${theme.stroke.secondary}`,
-            backgroundColor: theme.bg.editor,
-            backgroundImage: `radial-gradient(${theme.stroke.tertiary} 1px, transparent 1px)`,
-            backgroundSize: "18px 18px",
-            cursor: dragging
-              ? "grabbing"
-              : overHotspot
-                ? "pointer"
-                : "grab",
-            userSelect: "none",
-          }}
-          onPointerDown={(e) => {
-            if ((e.target as HTMLElement).closest("[data-arch-resize]")) return;
-            didPanRef.current = false;
-            downTargetRef.current = e.target as Element;
-            dragOriginRef.current = {
-              px: e.clientX,
-              py: e.clientY,
-              vx: archView.x,
-              vy: archView.y,
-            };
-            setOverHotspot(false);
-            setDragging(true);
-            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          }}
-          onPointerMove={(e) => {
-            const origin = dragOriginRef.current;
-            if (!origin) {
-              updateHoverCursor(e.clientX, e.clientY);
-              return;
-            }
-            const dx = e.clientX - origin.px;
-            const dy = e.clientY - origin.py;
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true;
-            setArchView({
-              ...archView,
-              x: origin.vx + dx,
-              y: origin.vy + dy,
-            });
-          }}
-          onPointerUp={(e) => {
-            try {
-              (e.currentTarget as HTMLElement).releasePointerCapture(
-                e.pointerId,
-              );
-            } catch {
-              /* already released */
-            }
-            if (!didPanRef.current) {
-              // Capture retargets e.target to the viewport; prefer geometry hit,
-              // then the original down target.
-              const under = document.elementFromPoint(e.clientX, e.clientY);
-              const hit =
-                (under ? hitFromEvent(under) : null) ??
-                (downTargetRef.current
-                  ? hitFromEvent(downTargetRef.current)
-                  : null);
-              if (hit) activate(hit);
-            }
-            dragOriginRef.current = null;
-            downTargetRef.current = null;
-            didPanRef.current = false;
-            setDragging(false);
-            updateHoverCursor(e.clientX, e.clientY);
-          }}
-          onPointerLeave={() => setOverHotspot(false)}
-          onWheel={(e) => {
-            const delta = e.deltaY > 0 ? -0.08 : 0.08;
-            setArchZoom(archView.zoom + delta);
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: world.w,
-              height: world.h,
-              transform: `translate(${archView.x}px, ${archView.y}px) scale(${archView.zoom})`,
-              transformOrigin: "0 0",
-              padding: 8,
-              boxSizing: "content-box",
-            }}
-            dangerouslySetInnerHTML={{ __html: cameraSvg }}
-          />
-        </div>
-        <div
-          data-arch-resize
-          title="Drag to resize architecture height"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-            setResizingH(true);
-            resizeHRef.current = { py: e.clientY, height: archH };
-          }}
-          onPointerMove={(e) => {
-            const origin = resizeHRef.current;
-            if (!origin) return;
-            setArchH(
-              clamp(
-                origin.height + (e.clientY - origin.py),
-                MIN_ARCH_H,
-                MAX_ARCH_H,
-              ),
-            );
-          }}
-          onPointerUp={(e) => {
-            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-            setResizingH(false);
-            resizeHRef.current = null;
-          }}
-          style={{
-            height: 12,
-            marginTop: -1,
-            cursor: "ns-resize",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "0 0 8px 8px",
-            background: resizingH
-              ? theme.fill.secondary
-              : theme.fill.tertiary,
-            border: `1px solid ${theme.stroke.secondary}`,
-            borderTop: "none",
-          }}
-        >
-          <div
-            style={{
-              width: 40,
-              height: 3,
-              borderRadius: 2,
-              background: theme.stroke.primary,
-            }}
-          />
-        </div>
-      </div>
-
-      <Row gap={6} wrap>
-        {diagram.hotspots.map((h) => {
-          const active = hotspotActive(h);
-          return (
-            <div
-              key={`${h.label}:${h.nodeId ?? h.edgeKey ?? ""}`}
-              onMouseEnter={() => {
-                const ent = resolveHotspotEntity(h);
-                if (ent) onPreviewFiles(collectFiles(ent));
-              }}
-              onMouseLeave={onClearPreview}
-            >
-              <Button
-                variant={active ? "primary" : "secondary"}
-                onClick={() => activate(h)}
-              >
-                {h.label}
-              </Button>
-            </div>
-          );
-        })}
-      </Row>
-    </Stack>
-  );
-}
-export default function MapView() {
-  const theme = useHostTheme();
-  const dispatch = useCanvasAction();
-  const [focus, setFocus] = useCanvasState<Focus>("focus", {
-    kind: "node",
-    id: PATH[0],
-  });
-  const [view, setView] = useCanvasState<View>("view", {
-    x: 16,
-    y: 16,
-    zoom: 1,
-  });
-  const [viewportH, setViewportH] = useCanvasState(
-    "viewportH",
-    DEFAULT_VIEWPORT_H,
-  );
-  const [sidebarW, setSidebarW] = useCanvasState(
-    "sidebarW",
-    DEFAULT_SIDEBAR_W,
-  );
-  const [sidebarOpen, setSidebarOpen] = useCanvasState("sidebarOpen", true);
-  const [treeW, setTreeW] = useCanvasState("treeW", DEFAULT_TREE_W);
-  const [dragging, setDragging] = useState(false);
-  const [dragOrigin, setDragOrigin] = useState<{
-    px: number;
-    py: number;
-    vx: number;
-    vy: number;
-  } | null>(null);
-  const [resizingH, setResizingH] = useState(false);
-  const resizeHRef = useRef<{ py: number; height: number } | null>(null);
-  const [resizingW, setResizingW] = useState(false);
-  const resizeWRef = useRef<{ px: number; width: number } | null>(null);
-  const [resizingTreeW, setResizingTreeW] = useState(false);
-  const resizeTreeWRef = useRef<{ px: number; width: number } | null>(null);
-  const [hoverPaths, setHoverPaths] = useState<string[]>([]);
-  const [filePreview, setFilePreview] = useState<FileRef | null>(null);
-
-  const mapFiles = useMemo(
-    () =>
-      collectAllMapPaths().map((absPath) => ({
-        absPath,
-        relPath: relPath(absPath),
-      })),
-    [],
-  );
-
-  function previewFiles(refs: FileRef[]) {
-    setHoverPaths([
-      ...new Set(refs.map((r) => relPath(r.path))),
-    ]);
-  }
-
-  function clearPreview() {
-    setHoverPaths([]);
-  }
-
-  function previewFile(ref: FileRef) {
-    setFilePreview(ref);
-  }
-
-  const edgeMeta = new Map(
-    EDGES.map((e) => [edgeKey(e.from, e.to), e] as const),
-  );
-  const layout = layoutWrappedPath(PATH);
-  const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
-  const laidEdges = buildPathEdges(layout.nodes, edgeMeta);
-
-  const selectedNode =
-    focus.kind === "node"
-      ? (NODES.find((n) => n.id === focus.id) ?? NODES[0])
-      : null;
-  const selectedEdge =
-    focus.kind === "edge" ? (edgeMeta.get(focus.key) ?? null) : null;
-  const selectedEntity =
-    selectedEdge ?? selectedNode ?? NODES[0];
-  const selectedPaths = [
-    ...new Set(collectFiles(selectedEntity).map((f) => relPath(f.path))),
-  ];
-  const pathIndex = selectedNode ? PATH.indexOf(selectedNode.id) : -1;
-  const typeScale = sidebarType(sidebarW);
-
-  function selectNode(id: string) {
-    setFocus({ kind: "node", id });
-    setSidebarOpen(true);
-  }
-
-  function selectEdge(key: string) {
-    setFocus({ kind: "edge", key });
-    setSidebarOpen(true);
+  function panStartBlocked(target: Element): boolean {
+    return !!target.closest(
+      "[data-map-node], [data-map-edge], [data-sidebar-resize], [data-tree-resize], [data-map-sidebar], [data-map-tree]",
+    );
   }
 
   function openInIde(ref: FileRef) {
@@ -1533,532 +1559,490 @@ export default function MapView() {
   }
 
   function fit() {
-    setView({ x: 16, y: 16, zoom: 1 });
+    setView({ x: 0, y: 0, zoom: 1 });
   }
-
-  const viewportStyle: CSSProperties = {
-    position: "relative",
-    width: "100%",
-    height: viewportH,
-    overflow: "hidden",
-    border: `1px solid ${theme.stroke.secondary}`,
-    borderRadius: 8,
-    backgroundColor: theme.bg.editor,
-    backgroundImage: `radial-gradient(${theme.stroke.tertiary} 1px, transparent 1px)`,
-    backgroundSize: "18px 18px",
-    cursor: dragging ? "grabbing" : "grab",
-    userSelect: "none",
-  };
-
-  const worldStyle: CSSProperties = {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    width: layout.width,
-    height: layout.height,
-    transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
-    transformOrigin: "0 0",
-  };
 
   const sidebarTitle =
     selectedEdge != null
       ? `${selectedEdge.label}: ${selectedEdge.from} → ${selectedEdge.to}`
       : (selectedNode?.label ?? "");
   const sidebarBody = selectedEdge?.body ?? selectedNode?.body ?? [];
-  const sidebarFiles = selectedEdge?.files ?? selectedNode?.files ?? [];
+
+  const viewportStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    overflow: "hidden",
+    backgroundColor: theme.bg.editor,
+    backgroundImage: `radial-gradient(${theme.stroke.tertiary} 1px, transparent 1px)`,
+    backgroundSize: "18px 18px",
+    cursor: dragging ? "grabbing" : overHotspot ? "pointer" : "grab",
+    userSelect: "none",
+    fontFamily: UI_FONT,
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
+  };
+
+  const worldStyle: CSSProperties = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: worldW,
+    height: worldH,
+    transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+    transformOrigin: "0 0",
+  };
 
   return (
-    <Stack gap={16} style={{ padding: 20 }}>
-      <Stack gap={6}>
-        <H1>Map</H1>
-        <Text tone="secondary">
-          Interactive architecture diagram + snake flow map. Click a node or edge —
-          the left sidebar shows prose, code excerpts, and source
-          backlinks. Hover to preview files in the right tree.
-        </Text>
-      </Stack>
-
-      <ArchitecturePanel
-        theme={theme}
-        focus={focus}
-        onSelectNode={selectNode}
-        onSelectEdge={selectEdge}
-        onPreviewFiles={previewFiles}
-        onClearPreview={clearPreview}
-      />
-
-      <Row gap={8} wrap align="center">
-        <Button variant="secondary" onClick={() => setZoom(view.zoom - 0.15)}>
-          Zoom −
-        </Button>
-        <Button variant="secondary" onClick={() => setZoom(view.zoom + 0.15)}>
-          Zoom +
-        </Button>
-        <Button variant="secondary" onClick={fit}>
-          Fit
-        </Button>
-        <Text size="small" tone="tertiary">
-          {Math.round(view.zoom * 100)}%
-        </Text>
-        <Text size="small" tone="quaternary">
-          |
-        </Text>
-        <Button
-          variant="secondary"
-          disabled={pathIndex <= 0 && focus.kind === "node"}
-          onClick={() => go(-1)}
-        >
-          Prev
-        </Button>
-        <Pill>
-          {focus.kind === "node"
-            ? `${pathIndex + 1} / ${PATH.length}`
-            : "edge"}
-        </Pill>
-        <Button
-          variant="secondary"
-          disabled={
-            focus.kind === "node"
-              ? pathIndex >= PATH.length - 1
-              : false
-          }
-          onClick={() => go(1)}
-        >
-          Next
-        </Button>
-        {!sidebarOpen ? (
-          <Button variant="secondary" onClick={() => setSidebarOpen(true)}>
-            Open details
-          </Button>
-        ) : null}
-        <Text size="small" tone="tertiary">
-          Pan map · resize map height · resize sidebar · click nodes or edges ·
-          hover to preview files
-        </Text>
-      </Row>
-
+    <div
+      data-map-shell
+      style={{
+        // Escape CanvasShell page padding so the diagram is true edge-to-edge.
+        position: "fixed",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        overscrollBehavior: "none",
+        padding: 0,
+        margin: 0,
+        zIndex: 1,
+        fontFamily: UI_FONT,
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
+        textRendering: "optimizeLegibility",
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: SIDEBAR_SCROLLBAR_CSS }} />
       <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "stretch",
-          width: "100%",
-          gap: 0,
+        data-map-viewport
+        style={viewportStyle}
+        onPointerDown={(e) => {
+          const target = e.target as Element;
+          if (panStartBlocked(target)) return;
+          didPanRef.current = false;
+          downTargetRef.current = target;
+          dragOriginRef.current = {
+            px: e.clientX,
+            py: e.clientY,
+            vx: view.x,
+            vy: view.y,
+          };
+          setOverHotspot(false);
+          setDragging(true);
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const origin = dragOriginRef.current;
+          if (!origin) {
+            updateHoverCursor(e.clientX, e.clientY);
+            return;
+          }
+          const dx = e.clientX - origin.px;
+          const dy = e.clientY - origin.py;
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true;
+          setView({
+            ...view,
+            x: origin.vx + dx,
+            y: origin.vy + dy,
+          });
+        }}
+        onPointerUp={(e) => {
+          try {
+            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+          } catch {
+            /* already released */
+          }
+          if (!didPanRef.current) {
+            const under = document.elementFromPoint(e.clientX, e.clientY);
+            const hit =
+              (under ? hitFromEvent(under) : null) ??
+              (downTargetRef.current
+                ? hitFromEvent(downTargetRef.current)
+                : null);
+            if (hit) activateHotspot(hit);
+          }
+          dragOriginRef.current = null;
+          downTargetRef.current = null;
+          didPanRef.current = false;
+          setDragging(false);
+          updateHoverCursor(e.clientX, e.clientY);
+        }}
+        onPointerLeave={() => setOverHotspot(false)}
+        onWheel={(e) => {
+          if (!e.ctrlKey && !e.metaKey) return;
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? -0.08 : 0.08;
+          setZoom(view.zoom + delta);
         }}
       >
-        {sidebarOpen ? (
+        <div style={worldStyle}>
+          <div
+            data-arch-world
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: archWorld.w,
+              height: archWorld.h,
+              padding: 0,
+              boxSizing: "content-box",
+            }}
+            dangerouslySetInnerHTML={{ __html: cameraSvg }}
+          />
           <div
             style={{
-              display: "flex",
-              flexDirection: "row",
-              flexShrink: 0,
-              height: viewportH + 12,
+              position: "absolute",
+              left: 0,
+              top: snakeOffsetY,
+              width: layout.width,
+              height: layout.height,
             }}
           >
-            <aside
-              style={{
-                width: sidebarW,
-                boxSizing: "border-box",
-                padding: typeScale.pad,
-                overflow: "auto",
-                borderRadius: "8px 0 0 8px",
-                border: `1px solid ${theme.stroke.secondary}`,
-                borderRight: "none",
-                background: theme.bg.elevated,
-                display: "flex",
-                flexDirection: "column",
-                gap: typeScale.gap,
-              }}
+            <svg
+              width={layout.width}
+              height={layout.height}
+              style={{ position: "absolute", inset: 0, overflow: "visible" }}
             >
-              <Row gap={8} align="center" justify="space-between">
-                <Pill size="sm" active>
-                  {focus.kind === "edge" ? "Dependency" : "Step"}
-                </Pill>
-                <Button variant="ghost" onClick={() => setSidebarOpen(false)}>
-                  Close
+              <defs>
+                <marker
+                  id="arrow"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path
+                    d="M0,0 L8,4 L0,8 Z"
+                    fill={theme.stroke.secondary}
+                  />
+                </marker>
+                <marker
+                  id="arrow-active"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path
+                    d="M0,0 L8,4 L0,8 Z"
+                    fill={theme.accent.primary}
+                  />
+                </marker>
+              </defs>
+              {laidEdges.map((e) => {
+                const active =
+                  focus.kind === "edge"
+                    ? focus.key === e.key
+                    : focus.kind === "node" &&
+                      (e.from === focus.id || e.to === focus.id);
+                const d = edgePath(e);
+                return (
+                  <g
+                    key={e.key}
+                    data-map-edge
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      selectEdge(e.key);
+                    }}
+                    onMouseEnter={() => {
+                      const meta = edgeMeta.get(e.key);
+                      if (meta) previewFiles(collectFiles(meta));
+                    }}
+                    onMouseLeave={clearPreview}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={18}
+                    />
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={
+                        active ? theme.accent.primary : theme.stroke.secondary
+                      }
+                      strokeWidth={active ? 2.5 : 1.75}
+                      markerEnd={
+                        active ? "url(#arrow-active)" : "url(#arrow)"
+                      }
+                    />
+                    {e.label ? (
+                      <g>
+                        <rect
+                          x={
+                            e.labelX - Math.max(30, e.label.length * 3.6 + 10)
+                          }
+                          y={e.labelY - 10}
+                          width={Math.max(60, e.label.length * 7.2 + 20)}
+                          height={18}
+                          rx={4}
+                          fill={theme.bg.editor}
+                          stroke={
+                            active
+                              ? theme.accent.primary
+                              : theme.stroke.tertiary
+                          }
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={e.labelX}
+                          y={e.labelY + 3}
+                          textAnchor="middle"
+                          fill={
+                            active
+                              ? theme.accent.primary
+                              : theme.text.secondary
+                          }
+                          fontSize={11}
+                          fontFamily={UI_FONT}
+                        >
+                          {e.label}
+                        </text>
+                      </g>
+                    ) : null}
+                  </g>
+                );
+              })}
+            </svg>
+
+            {NODES.map((n, i) => {
+              const pos = nodeById.get(n.id);
+              if (!pos) return null;
+              const isSelected = focus.kind === "node" && focus.id === n.id;
+              return (
+                <div
+                  key={n.id}
+                  data-map-node
+                  onClick={() => selectNode(n.id)}
+                  onMouseEnter={() => previewFiles(collectFiles(n))}
+                  onMouseLeave={clearPreview}
+                  style={{
+                    position: "absolute",
+                    left: pos.x,
+                    top: pos.y,
+                    width: NODE_W,
+                    height: NODE_H,
+                    boxSizing: "border-box",
+                    padding: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    background: isSelected
+                      ? theme.fill.tertiary
+                      : theme.bg.elevated,
+                    border: `1.5px solid ${
+                      isSelected
+                        ? theme.accent.primary
+                        : theme.stroke.secondary
+                    }`,
+                  }}
+                >
+                  <Row gap={8} align="center">
+                    <Pill size="sm" active={isSelected}>
+                      {i + 1}
+                    </Pill>
+                    <Text weight="semibold" size="small">
+                      {n.label}
+                    </Text>
+                  </Row>
+                  <Text
+                    size="small"
+                    tone="secondary"
+                    style={{ lineHeight: "1.35" }}
+                  >
+                    {richInline(n.teaser)}
+                  </Text>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div
+        data-map-toolbar
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 16,
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            pointerEvents: "auto",
+            display: "flex",
+            flexFlow: "row wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: theme.bg.elevated,
+            border: `1px solid ${theme.stroke.secondary}`,
+          }}
+        >
+          {ARCH_DIAGRAMS.length > 1
+            ? ARCH_DIAGRAMS.map((d) => (
+                <Button
+                  key={d.id}
+                  variant={d.id === diagram.id ? "primary" : "secondary"}
+                  onClick={() => {
+                    setActiveId(d.id);
+                    fit();
+                  }}
+                >
+                  {d.title}
                 </Button>
-              </Row>
+              ))
+            : null}
+          <IconButton
+            title="Zoom out"
+            style={TOOLBAR_ICON_BTN}
+            onClick={() => setZoom(view.zoom - 0.15)}
+          >
+            <ZoomOutIcon />
+          </IconButton>
+          <IconButton
+            title="Zoom in"
+            style={TOOLBAR_ICON_BTN}
+            onClick={() => setZoom(view.zoom + 0.15)}
+          >
+            <ZoomInIcon />
+          </IconButton>
+          <IconButton title="Fit" style={TOOLBAR_ICON_BTN} onClick={fit}>
+            <FitIcon />
+          </IconButton>
+          <Text size="small" tone="tertiary">
+            {Math.round(view.zoom * 100)}%
+          </Text>
+          <IconButton
+            title="Previous step"
+            style={TOOLBAR_ICON_BTN}
+            disabled={pathIndex <= 0 && focus.kind === "node"}
+            onClick={() => go(-1)}
+          >
+            <ChevronLeftIcon />
+          </IconButton>
+          <Pill>
+            {focus.kind === "node"
+              ? `${pathIndex + 1} / ${PATH.length}`
+              : "edge"}
+          </Pill>
+          <IconButton
+            title="Next step"
+            style={TOOLBAR_ICON_BTN}
+            disabled={
+              focus.kind === "node" ? pathIndex >= PATH.length - 1 : false
+            }
+            onClick={() => go(1)}
+          >
+            <ChevronRightIcon />
+          </IconButton>
+          {!sidebarOpen ? (
+            <IconButton
+              title="Open details"
+              style={TOOLBAR_ICON_BTN}
+              onClick={() => setSidebarOpen(true)}
+            >
+              <SidebarIcon />
+            </IconButton>
+          ) : null}
+        </div>
+      </div>
+
+      {sidebarOpen ? (
+        <div
+          data-map-sidebar
+          style={{
+            position: "absolute",
+            left: OVERLAY_INSET,
+            top: OVERLAY_INSET,
+            bottom: OVERLAY_INSET,
+            zIndex: 10,
+            width: sidebarW,
+            boxSizing: "border-box",
+            borderRadius: 10,
+            border: `1px solid ${theme.stroke.secondary}`,
+            background: theme.bg.elevated,
+            overflow: "hidden",
+            fontFamily: UI_FONT,
+          }}
+        >
+          <aside
+            style={{
+              width: "100%",
+              height: "100%",
+              boxSizing: "border-box",
+              padding: typeScale.pad,
+              overflow: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: typeScale.gap,
+            }}
+          >
+            <Row gap={8} align="center" justify="space-between">
               <Text
                 weight="semibold"
-                style={{ fontSize: typeScale.title, lineHeight: 1.3 }}
+                style={{
+                  fontSize: typeScale.title,
+                  lineHeight: 1.3,
+                  flex: 1,
+                  minWidth: 0,
+                }}
               >
                 {sidebarTitle}
               </Text>
-              {renderDocBlocks(
-                sidebarBody,
-                typeScale,
-                theme,
-                previewFile,
-                previewFiles,
-                clearPreview,
-              )}
-              <Stack gap={6}>
-                <Text
-                  weight="semibold"
-                  style={{ fontSize: typeScale.meta }}
-                >
-                  Source
-                </Text>
-                <Stack gap={4}>
-                  {sidebarFiles.map((f) => (
-                    <div
-                      key={`${f.path}:${f.line ?? 0}`}
-                      onMouseEnter={() => previewFiles([f])}
-                      onMouseLeave={(e) => leavePreview(e, clearPreview)}
-                    >
-                      <Button
-                        variant="ghost"
-                        onClick={() => previewFile(f)}
-                        style={{
-                          justifyContent: "flex-start",
-                          height: "auto",
-                          minHeight: 0,
-                          padding: "4px 6px",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontFamily:
-                              "ui-monospace, SFMono-Regular, Menlo, monospace",
-                            color: theme.text.link,
-                            fontSize: typeScale.code,
-                            textAlign: "left",
-                          }}
-                        >
-                          {f.label ?? f.path.split("/").pop()}
-                          {f.line != null ? `:${f.line}` : ""}
-                        </Text>
-                      </Button>
-                    </div>
-                  ))}
-                </Stack>
-              </Stack>
-              {focus.kind === "node" ? (
-                <Row gap={8} style={{ marginTop: "auto" }}>
-                  <Button
-                    variant="secondary"
-                    disabled={pathIndex <= 0}
-                    onClick={() => go(-1)}
-                  >
-                    Prev
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    disabled={pathIndex >= PATH.length - 1}
-                    onClick={() => go(1)}
-                  >
-                    Next
-                  </Button>
-                </Row>
-              ) : selectedEdge ? (
-                <Row gap={8} style={{ marginTop: "auto" }} wrap>
-                  <Button
-                    variant="secondary"
-                    onClick={() => selectNode(selectedEdge.from)}
-                  >
-                    ← {selectedEdge.from}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => selectNode(selectedEdge.to)}
-                  >
-                    {selectedEdge.to} →
-                  </Button>
-                </Row>
-              ) : null}
-            </aside>
-            <div
-              data-sidebar-resize
-              title="Drag to resize sidebar"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                setResizingW(true);
-                resizeWRef.current = { px: e.clientX, width: sidebarW };
-              }}
-              onPointerMove={(e) => {
-                const origin = resizeWRef.current;
-                if (!origin) return;
-                setSidebarW(
-                  clamp(
-                    origin.width + (e.clientX - origin.px),
-                    MIN_SIDEBAR_W,
-                    MAX_SIDEBAR_W,
-                  ),
-                );
-              }}
-              onPointerUp={(e) => {
-                (e.currentTarget as HTMLElement).releasePointerCapture(
-                  e.pointerId,
-                );
-                setResizingW(false);
-                resizeWRef.current = null;
-              }}
-              style={{
-                width: 8,
-                cursor: "ew-resize",
-                background: resizingW
-                  ? theme.fill.secondary
-                  : theme.fill.tertiary,
-                border: `1px solid ${theme.stroke.secondary}`,
-                borderLeft: "none",
-                borderRadius: "0 8px 8px 0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: 2,
-                  height: 28,
-                  borderRadius: 1,
-                  background: theme.stroke.primary,
-                }}
-              />
-            </div>
-          </div>
-        ) : null}
-
-        <div
-          style={{
-            position: "relative",
-            flex: 1,
-            minWidth: 0,
-            marginLeft: sidebarOpen ? 8 : 0,
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "stretch",
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              ...viewportStyle,
-              borderRadius: "8px 0 0 0",
-            }}
-            onPointerDown={(e) => {
-              if ((e.target as HTMLElement).closest("[data-map-node]")) return;
-              if ((e.target as HTMLElement).closest("[data-map-edge]")) return;
-              if ((e.target as HTMLElement).closest("[data-resize-handle]"))
-                return;
-              if ((e.target as HTMLElement).closest("[data-tree-resize]"))
-                return;
-              setDragging(true);
-              setDragOrigin({
-                px: e.clientX,
-                py: e.clientY,
-                vx: view.x,
-                vy: view.y,
-              });
-            }}
-            onPointerMove={(e) => {
-              if (!dragging || !dragOrigin) return;
-              setView({
-                ...view,
-                x: dragOrigin.vx + (e.clientX - dragOrigin.px),
-                y: dragOrigin.vy + (e.clientY - dragOrigin.py),
-              });
-            }}
-            onPointerUp={() => {
-              setDragging(false);
-              setDragOrigin(null);
-            }}
-            onPointerLeave={() => {
-              setDragging(false);
-              setDragOrigin(null);
-            }}
-            onWheel={(e) => {
-              const delta = e.deltaY > 0 ? -0.08 : 0.08;
-              setZoom(view.zoom + delta);
-            }}
-          >
-            <div style={worldStyle}>
-              <svg
-                width={layout.width}
-                height={layout.height}
-                style={{ position: "absolute", inset: 0, overflow: "visible" }}
+              <IconButton
+                title="Close details"
+                style={TOOLBAR_ICON_BTN}
+                onClick={() => setSidebarOpen(false)}
               >
-                <defs>
-                  <marker
-                    id="arrow"
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="7"
-                    refY="4"
-                    orient="auto"
-                  >
-                    <path
-                      d="M0,0 L8,4 L0,8 Z"
-                      fill={theme.stroke.secondary}
-                    />
-                  </marker>
-                  <marker
-                    id="arrow-active"
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="7"
-                    refY="4"
-                    orient="auto"
-                  >
-                    <path
-                      d="M0,0 L8,4 L0,8 Z"
-                      fill={theme.accent.primary}
-                    />
-                  </marker>
-                </defs>
-                {laidEdges.map((e) => {
-                  const active =
-                    focus.kind === "edge"
-                      ? focus.key === e.key
-                      : focus.kind === "node" &&
-                        (e.from === focus.id || e.to === focus.id);
-                  const d = edgePath(e);
-                  return (
-                    <g
-                      key={e.key}
-                      data-map-edge
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        selectEdge(e.key);
-                      }}
-                      onMouseEnter={() => {
-                        const meta = edgeMeta.get(e.key);
-                        if (meta) previewFiles(collectFiles(meta));
-                      }}
-                      onMouseLeave={clearPreview}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke="transparent"
-                        strokeWidth={18}
-                      />
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke={
-                          active
-                            ? theme.accent.primary
-                            : theme.stroke.secondary
-                        }
-                        strokeWidth={active ? 2.5 : 1.75}
-                        markerEnd={
-                          active ? "url(#arrow-active)" : "url(#arrow)"
-                        }
-                      />
-                      {e.label ? (
-                        <g>
-                          <rect
-                            x={e.labelX - Math.max(30, e.label.length * 3.6 + 10)}
-                            y={e.labelY - 10}
-                            width={Math.max(60, e.label.length * 7.2 + 20)}
-                            height={18}
-                            rx={4}
-                            fill={theme.bg.editor}
-                            stroke={
-                              active
-                                ? theme.accent.primary
-                                : theme.stroke.tertiary
-                            }
-                            strokeWidth={1}
-                          />
-                          <text
-                            x={e.labelX}
-                            y={e.labelY + 3}
-                            textAnchor="middle"
-                            fill={
-                              active
-                                ? theme.accent.primary
-                                : theme.text.secondary
-                            }
-                            fontSize={11}
-                            fontFamily="ui-sans-serif, system-ui, sans-serif"
-                          >
-                            {e.label}
-                          </text>
-                        </g>
-                      ) : null}
-                    </g>
-                  );
-                })}
-              </svg>
-
-              {NODES.map((n, i) => {
-                const pos = nodeById.get(n.id);
-                if (!pos) return null;
-                const isSelected =
-                  focus.kind === "node" && focus.id === n.id;
-                return (
-                  <div
-                    key={n.id}
-                    data-map-node
-                    onClick={() => selectNode(n.id)}
-                    onMouseEnter={() => previewFiles(collectFiles(n))}
-                    onMouseLeave={clearPreview}
-                    style={{
-                      position: "absolute",
-                      left: pos.x,
-                      top: pos.y,
-                      width: NODE_W,
-                      height: NODE_H,
-                      boxSizing: "border-box",
-                      padding: 12,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      background: isSelected
-                        ? theme.fill.tertiary
-                        : theme.bg.elevated,
-                      border: `1.5px solid ${
-                        isSelected
-                          ? theme.accent.primary
-                          : theme.stroke.secondary
-                      }`,
-                    }}
-                  >
-                    <Row gap={8} align="center">
-                      <Pill size="sm" active={isSelected}>
-                        {i + 1}
-                      </Pill>
-                      <Text weight="semibold" size="small">
-                        {n.label}
-                      </Text>
-                    </Row>
-                    <Text
-                      size="small"
-                      tone="secondary"
-                      style={{ lineHeight: "1.35" }}
-                    >
-                      {richInline(n.teaser)}
-                    </Text>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                <CloseIcon />
+              </IconButton>
+            </Row>
+            {renderDocBlocks(
+              sidebarBody,
+              typeScale,
+              theme,
+              previewFile,
+              previewFiles,
+              clearPreview,
+            )}
+          </aside>
           <div
-            data-resize-handle
-            title="Drag to resize map height"
+            data-sidebar-resize
+            title="Drag to resize sidebar"
+            onMouseEnter={() => setSidebarResizeHot(true)}
+            onMouseLeave={() => {
+              if (!resizingW) setSidebarResizeHot(false);
+            }}
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-              setResizingH(true);
-              resizeHRef.current = { py: e.clientY, height: viewportH };
+              setResizingW(true);
+              setSidebarResizeHot(true);
+              resizeWRef.current = { px: e.clientX, width: sidebarW };
             }}
             onPointerMove={(e) => {
-              const origin = resizeHRef.current;
+              const origin = resizeWRef.current;
               if (!origin) return;
-              setViewportH(
+              setSidebarW(
                 clamp(
-                  origin.height + (e.clientY - origin.py),
-                  MIN_VIEWPORT_H,
-                  MAX_VIEWPORT_H,
+                  origin.width + (e.clientX - origin.px),
+                  MIN_SIDEBAR_W,
+                  MAX_SIDEBAR_W,
                 ),
               );
             }}
@@ -2066,105 +2050,126 @@ export default function MapView() {
               (e.currentTarget as HTMLElement).releasePointerCapture(
                 e.pointerId,
               );
-              setResizingH(false);
-              resizeHRef.current = null;
+              setResizingW(false);
+              setSidebarResizeHot(false);
+              resizeWRef.current = null;
             }}
             style={{
-              height: 12,
-              marginTop: -1,
-              cursor: "ns-resize",
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 8,
+              cursor: "ew-resize",
+              background:
+                resizingW || sidebarResizeHot
+                  ? theme.fill.secondary
+                  : "transparent",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "0 0 0 8px",
-              background: resizingH
-                ? theme.fill.secondary
-                : theme.fill.tertiary,
-              border: `1px solid ${theme.stroke.secondary}`,
-              borderTop: "none",
-              borderRight: "none",
             }}
           >
             <div
               style={{
-                width: 40,
-                height: 3,
-                borderRadius: 2,
+                width: 2,
+                height: 28,
+                borderRadius: 1,
                 background: theme.stroke.primary,
+                opacity: resizingW || sidebarResizeHot ? 1 : 0,
               }}
-            />
-          </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexShrink: 0,
-              height: viewportH + 12,
-            }}
-          >
-            <div
-              data-tree-resize
-              title="Drag to resize file tree"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                setResizingTreeW(true);
-                resizeTreeWRef.current = { px: e.clientX, width: treeW };
-              }}
-              onPointerMove={(e) => {
-                const origin = resizeTreeWRef.current;
-                if (!origin) return;
-                setTreeW(
-                  clamp(
-                    origin.width - (e.clientX - origin.px),
-                    MIN_TREE_W,
-                    MAX_TREE_W,
-                  ),
-                );
-              }}
-              onPointerUp={(e) => {
-                (e.currentTarget as HTMLElement).releasePointerCapture(
-                  e.pointerId,
-                );
-                setResizingTreeW(false);
-                resizeTreeWRef.current = null;
-              }}
-              style={{
-                width: 8,
-                cursor: "ew-resize",
-                background: resizingTreeW
-                  ? theme.fill.secondary
-                  : theme.fill.tertiary,
-                border: `1px solid ${theme.stroke.secondary}`,
-                borderRight: "none",
-                borderRadius: "8px 0 0 8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: 2,
-                  height: 28,
-                  borderRadius: 1,
-                  background: theme.stroke.primary,
-                }}
-              />
-            </div>
-            <FileTreePanel
-              files={mapFiles}
-              selectedPaths={selectedPaths}
-              hoverPaths={hoverPaths}
-              theme={theme}
-              height={viewportH + 12}
-              width={treeW}
-              previewFile={previewFile}
             />
           </div>
         </div>
+      ) : null}
+
+      <div
+        data-map-tree
+        style={{
+          position: "absolute",
+          right: OVERLAY_INSET,
+          top: OVERLAY_INSET,
+          bottom: OVERLAY_INSET,
+          zIndex: 10,
+          width: treeW,
+          boxSizing: "border-box",
+          borderRadius: 10,
+          border: `1px solid ${theme.stroke.secondary}`,
+          background: theme.bg.elevated,
+          overflow: "hidden",
+          fontFamily: UI_FONT,
+        }}
+      >
+        <div
+          data-tree-resize
+          title="Drag to resize file tree"
+          onMouseEnter={() => setTreeResizeHot(true)}
+          onMouseLeave={() => {
+            if (!resizingTreeW) setTreeResizeHot(false);
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            setResizingTreeW(true);
+            setTreeResizeHot(true);
+            resizeTreeWRef.current = { px: e.clientX, width: treeW };
+          }}
+          onPointerMove={(e) => {
+            const origin = resizeTreeWRef.current;
+            if (!origin) return;
+            setTreeW(
+              clamp(
+                origin.width - (e.clientX - origin.px),
+                MIN_TREE_W,
+                MAX_TREE_W,
+              ),
+            );
+          }}
+          onPointerUp={(e) => {
+            (e.currentTarget as HTMLElement).releasePointerCapture(
+              e.pointerId,
+            );
+            setResizingTreeW(false);
+            setTreeResizeHot(false);
+            resizeTreeWRef.current = null;
+          }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: 8,
+            zIndex: 1,
+            cursor: "ew-resize",
+            background:
+              resizingTreeW || treeResizeHot
+                ? theme.fill.secondary
+                : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 2,
+              height: 28,
+              borderRadius: 1,
+              background: theme.stroke.primary,
+              opacity: resizingTreeW || treeResizeHot ? 1 : 0,
+            }}
+          />
+        </div>
+        <FileTreePanel
+          files={mapFiles}
+          selectedPaths={selectedPaths}
+          hoverPaths={hoverPaths}
+          theme={theme}
+          height={panelH}
+          width={treeW}
+          previewFile={previewFile}
+        />
       </div>
 
       {filePreview ? (
@@ -2175,8 +2180,6 @@ export default function MapView() {
           onOpenInIde={openInIde}
         />
       ) : null}
-
-      {/* Add more context below. */}
-    </Stack>
+    </div>
   );
 }
