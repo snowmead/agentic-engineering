@@ -8,11 +8,19 @@
  */
 import {
   Button,
+  Callout,
+  Card,
+  CardBody,
+  CardHeader,
   Code,
   DiffView,
+  Divider,
+  Grid,
   IconButton,
+  Link,
   Pill,
   Row,
+  Spacer,
   Stack,
   Text,
   useCanvasAction,
@@ -21,6 +29,7 @@ import {
   type DiffLineData,
 } from "cursor/canvas";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -172,6 +181,8 @@ const MIN_SIDEBAR_W = 240;
 const MAX_SIDEBAR_W = 900;
 const DEFAULT_SIDEBAR_W = 320;
 const MIN_TREE_W = 200;
+/** CardHeader chrome above the files tree (minHeight 28 + pad 12 + border). */
+const FILES_CARD_HEADER_H = 41;
 const MAX_TREE_W = 720;
 const DEFAULT_TREE_W = 280;
 /** Gap between floating overlays and the viewport edges. */
@@ -182,42 +193,58 @@ const UI_FONT =
 const MONO_FONT =
   '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
-/** Hover-only overlay scrollbars for left detail + right file tree. */
+/** Hover-only overlay scrollbars for left detail + right file tree + code cards. */
 const SIDEBAR_SCROLLBAR_CSS = `
-[data-map-sidebar] aside,
+[data-map-preview-scroll],
+[data-map-sidebar] [data-map-sidebar-scroll],
+[data-map-sidebar] [data-map-code-scroll],
 [data-map-tree] aside,
 [data-map-tree] [data-map-tree-scroll] {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
-[data-map-sidebar]:hover aside,
-[data-map-sidebar]:focus-within aside,
+[data-map-preview]:hover [data-map-preview-scroll],
+[data-map-preview]:focus-within [data-map-preview-scroll],
+[data-map-sidebar]:hover [data-map-sidebar-scroll],
+[data-map-sidebar]:focus-within [data-map-sidebar-scroll],
+[data-map-sidebar]:hover [data-map-code-scroll],
+[data-map-sidebar]:focus-within [data-map-code-scroll],
 [data-map-tree]:hover aside,
 [data-map-tree]:focus-within aside,
 [data-map-tree]:hover [data-map-tree-scroll],
 [data-map-tree]:focus-within [data-map-tree-scroll] {
   scrollbar-color: color-mix(in srgb, currentColor 35%, transparent) transparent;
 }
-[data-map-sidebar] aside::-webkit-scrollbar,
+[data-map-preview-scroll]::-webkit-scrollbar,
+[data-map-sidebar] [data-map-sidebar-scroll]::-webkit-scrollbar,
+[data-map-sidebar] [data-map-code-scroll]::-webkit-scrollbar,
 [data-map-tree] aside::-webkit-scrollbar,
 [data-map-tree] [data-map-tree-scroll]::-webkit-scrollbar {
   width: 8px;
   height: 8px;
   background: transparent;
 }
-[data-map-sidebar] aside::-webkit-scrollbar-track,
+[data-map-preview-scroll]::-webkit-scrollbar-track,
+[data-map-sidebar] [data-map-sidebar-scroll]::-webkit-scrollbar-track,
+[data-map-sidebar] [data-map-code-scroll]::-webkit-scrollbar-track,
 [data-map-tree] aside::-webkit-scrollbar-track,
 [data-map-tree] [data-map-tree-scroll]::-webkit-scrollbar-track {
   background: transparent;
 }
-[data-map-sidebar] aside::-webkit-scrollbar-thumb,
+[data-map-preview-scroll]::-webkit-scrollbar-thumb,
+[data-map-sidebar] [data-map-sidebar-scroll]::-webkit-scrollbar-thumb,
+[data-map-sidebar] [data-map-code-scroll]::-webkit-scrollbar-thumb,
 [data-map-tree] aside::-webkit-scrollbar-thumb,
 [data-map-tree] [data-map-tree-scroll]::-webkit-scrollbar-thumb {
   background: transparent;
   border-radius: 4px;
 }
-[data-map-sidebar]:hover aside::-webkit-scrollbar-thumb,
-[data-map-sidebar]:focus-within aside::-webkit-scrollbar-thumb,
+[data-map-preview]:hover [data-map-preview-scroll]::-webkit-scrollbar-thumb,
+[data-map-preview]:focus-within [data-map-preview-scroll]::-webkit-scrollbar-thumb,
+[data-map-sidebar]:hover [data-map-sidebar-scroll]::-webkit-scrollbar-thumb,
+[data-map-sidebar]:focus-within [data-map-sidebar-scroll]::-webkit-scrollbar-thumb,
+[data-map-sidebar]:hover [data-map-code-scroll]::-webkit-scrollbar-thumb,
+[data-map-sidebar]:focus-within [data-map-code-scroll]::-webkit-scrollbar-thumb,
 [data-map-tree]:hover aside::-webkit-scrollbar-thumb,
 [data-map-tree]:focus-within aside::-webkit-scrollbar-thumb,
 [data-map-tree]:hover [data-map-tree-scroll]::-webkit-scrollbar-thumb,
@@ -334,12 +361,61 @@ function clamp(n: number, lo: number, hi: number) {
 }
 
 function richInline(text: string): ReactNode[] {
-  return text.split(/(`[^`]+`)/g).map((part, i) => {
+  return text.split(/(`[^`]+`)/g).flatMap((part, i) => {
     if (part.startsWith("`") && part.endsWith("`") && part.length > 1) {
-      return <Code key={i}>{part.slice(1, -1)}</Code>;
+      return [<Code key={`c${i}`}>{part.slice(1, -1)}</Code>];
     }
-    return part;
+    // http(s) and markdown links use SDK Link; file open stays Button.
+    return part
+      .split(/(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s)]+)/g)
+      .map((seg, j) => {
+        const md = seg.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
+        if (md) {
+          return (
+            <Link key={`l${i}-${j}`} href={md[2]!}>
+              {md[1]}
+            </Link>
+          );
+        }
+        if (/^https?:\/\//.test(seg)) {
+          return (
+            <Link key={`u${i}-${j}`} href={seg}>
+              {seg}
+            </Link>
+          );
+        }
+        return seg;
+      });
   });
+}
+
+/** Shiki language id from file extension for DiffView. */
+function languageFromPath(path: string): string | undefined {
+  const base = path.split(/[/\\]/).pop() ?? path;
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0) return undefined;
+  const ext = base.slice(dot + 1).toLowerCase();
+  const map: Record<string, string> = {
+    ts: "typescript",
+    tsx: "tsx",
+    js: "javascript",
+    jsx: "jsx",
+    mjs: "javascript",
+    cjs: "javascript",
+    py: "python",
+    rs: "rust",
+    go: "go",
+    md: "markdown",
+    json: "json",
+    yaml: "yaml",
+    yml: "yaml",
+    css: "css",
+    html: "html",
+    sh: "bash",
+    bash: "bash",
+    zsh: "bash",
+  };
+  return map[ext];
 }
 
 function refPathLabel(ref: FileRef): string {
@@ -358,13 +434,49 @@ function highlightRange(ref: FileRef): { start?: number; end?: number } {
   return { start, end };
 }
 
+/** Max lines to highlight in the preview modal. */
+const PREVIEW_MODAL_LINE_CAP = 320;
+/** Context lines around the focus range when windowing large files. */
+const PREVIEW_MODAL_CONTEXT = 48;
+
+function previewModalLineWindow(
+  totalLines: number,
+  start?: number,
+  end?: number,
+): { from: number; to: number; truncatedAbove: number; truncatedBelow: number } {
+  if (totalLines <= PREVIEW_MODAL_LINE_CAP) {
+    return { from: 0, to: totalLines, truncatedAbove: 0, truncatedBelow: 0 };
+  }
+  const focusStart = start ?? 1;
+  const focusEnd = end ?? focusStart;
+  let from = Math.max(0, focusStart - 1 - PREVIEW_MODAL_CONTEXT);
+  let to = Math.min(totalLines, focusEnd + PREVIEW_MODAL_CONTEXT);
+  if (to - from > PREVIEW_MODAL_LINE_CAP) {
+    // Prefer keeping focusStart in-window over centering a too-wide range.
+    from = Math.max(0, focusStart - 1 - PREVIEW_MODAL_CONTEXT);
+    to = Math.min(totalLines, from + PREVIEW_MODAL_LINE_CAP);
+    from = Math.max(0, to - PREVIEW_MODAL_LINE_CAP);
+    if (focusStart - 1 < from) {
+      from = Math.max(0, focusStart - 1);
+      to = Math.min(totalLines, from + PREVIEW_MODAL_LINE_CAP);
+    }
+  }
+  return {
+    from,
+    to,
+    truncatedAbove: from,
+    truncatedBelow: totalLines - to,
+  };
+}
+
 function fileToPreviewLines(
   content: string,
   start?: number,
   end?: number,
+  opts?: { windowLargeFiles?: boolean },
 ): DiffLineData[] {
   const lines = content.replace(/\n$/, "").split("\n");
-  return lines.map((lineContent, idx) => {
+  const mapLine = (lineContent: string, idx: number): DiffLineData => {
     const n = idx + 1;
     const focused =
       start != null && end != null && n >= start && n <= end;
@@ -373,7 +485,31 @@ function fileToPreviewLines(
       content: lineContent,
       lineNumber: n,
     };
-  });
+  };
+
+  if (opts?.windowLargeFiles && lines.length > PREVIEW_MODAL_LINE_CAP) {
+    const { from, to, truncatedAbove, truncatedBelow } =
+      previewModalLineWindow(lines.length, start, end);
+    const out: DiffLineData[] = [];
+    if (truncatedAbove > 0) {
+      out.push({
+        type: "unchanged",
+        content: `// … ${truncatedAbove} lines above (open in editor for full file)`,
+      });
+    }
+    for (let idx = from; idx < to; idx++) {
+      out.push(mapLine(lines[idx]!, idx));
+    }
+    if (truncatedBelow > 0) {
+      out.push({
+        type: "unchanged",
+        content: `// … ${truncatedBelow} lines below (open in editor for full file)`,
+      });
+    }
+    return out;
+  }
+
+  return lines.map((lineContent, idx) => mapLine(lineContent, idx));
 }
 
 /** Toolbar / chrome glyphs — larger than IconButton's default 14px insets. */
@@ -567,6 +703,139 @@ function CloseIcon() {
   );
 }
 
+/** Plain-text fallback when DiffView paints zero height. */
+function previewLinesFallback(
+  lines: DiffLineData[],
+  theme: ReturnType<typeof useHostTheme>,
+) {
+  const maxLine = lines.reduce(
+    (m, l, i) => Math.max(m, l.lineNumber ?? i + 1),
+    0,
+  );
+  const gutterW = Math.max(4, String(maxLine).length);
+  return (
+    <div
+      style={{
+        margin: 0,
+        padding: "6px 10px",
+        fontFamily: MONO_FONT,
+        fontSize: 12,
+        lineHeight: "18px",
+        color: theme.text.primary,
+        whiteSpace: "pre",
+        tabSize: 2,
+      }}
+    >
+      {lines.map((line, i) => {
+        const n = line.lineNumber ?? i + 1;
+        const gutter = String(n).padStart(gutterW, " ");
+        const accent =
+          line.type === "added"
+            ? theme.accent.primary
+            : line.type === "removed"
+              ? "#f14c4c"
+              : theme.text.primary;
+        return (
+          <div
+            key={`${n}-${i}`}
+            style={{
+              display: "flex",
+              background:
+                line.type === "added"
+                  ? "color-mix(in srgb, var(--canvas-accent, #3794ff) 12%, transparent)"
+                  : undefined,
+            }}
+          >
+            <span
+              style={{
+                flexShrink: 0,
+                width: `${gutterW + 2}ch`,
+                paddingRight: 8,
+                color: theme.text.tertiary,
+                textAlign: "right",
+                userSelect: "none",
+              }}
+            >
+              {gutter}
+            </span>
+            <span style={{ color: accent, minWidth: 0 }}>{line.content}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PreviewDiffContent({
+  path,
+  lines,
+  theme,
+}: {
+  path: string;
+  lines: DiffLineData[];
+  theme: ReturnType<typeof useHostTheme>;
+}) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
+  const language = languageFromPath(path);
+
+  useEffect(() => {
+    if (lines.length === 0) return;
+    setUseFallback(false);
+    let cancelled = false;
+    const measure = () => {
+      const el = wrapRef.current;
+      if (!el || cancelled) return;
+      const painted =
+        el.scrollHeight > 8 || el.getBoundingClientRect().height > 8;
+      setUseFallback(!painted);
+    };
+    // Keep DiffView mounted; only commit fallback after it had time to paint.
+    const t1 = window.setTimeout(measure, 120);
+    const t2 = window.setTimeout(measure, 400);
+    const el = wrapRef.current;
+    const ro = el ? new ResizeObserver(measure) : null;
+    if (el && ro) ro.observe(el);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      ro?.disconnect();
+    };
+  }, [path, lines]);
+
+  return (
+    <div style={{ width: "100%", position: "relative" }}>
+      <div
+        ref={wrapRef}
+        style={
+          useFallback
+            ? {
+                position: "absolute",
+                left: 0,
+                right: 0,
+                opacity: 0,
+                pointerEvents: "none",
+                width: "100%",
+              }
+            : { width: "100%" }
+        }
+        aria-hidden={useFallback || undefined}
+      >
+        <DiffView
+          path={path}
+          language={language}
+          lines={lines}
+          showLineNumbers
+          showAccentStrip
+          style={{ width: "100%" }}
+        />
+      </div>
+      {useFallback ? previewLinesFallback(lines, theme) : null}
+    </div>
+  );
+}
+
 function CodePreviewModal({
   file,
   theme,
@@ -578,21 +847,113 @@ function CodePreviewModal({
   onClose: () => void;
   onOpenInIde: (ref: FileRef) => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const offsetRef = useRef(0);
+  const userScrolledRef = useRef(false);
+  const focusReadyRef = useRef(false);
+  const [offset, setOffset] = useState(0);
+  const [viewportH, setViewportH] = useState(560);
+  const [contentH, setContentH] = useState(0);
   const content = FILE_CONTENTS[file.path];
   const { start, end } = highlightRange(file);
-  const lines = content
-    ? fileToPreviewLines(content, start, end)
-    : fileToPreviewLines(
-        "// File contents were not embedded for this path.\n// Use the open-in-IDE control to view it in the editor.",
-      );
+  const lines = useMemo(
+    () =>
+      content
+        ? fileToPreviewLines(content, start, end, { windowLargeFiles: true })
+        : fileToPreviewLines(
+            "// File contents were not embedded for this path.\n// Use the open-in-IDE control to view it in the editor.",
+          ),
+    [content, start, end],
+  );
+  const maxOffset = Math.max(0, contentH - viewportH);
+
+  const applyOffset = (next: number) => {
+    const clamped = Math.max(0, Math.min(maxOffset, next));
+    offsetRef.current = clamped;
+    setOffset(clamped);
+  };
+
+  // New file / focus target: clear scroll so stale offsets cannot leak.
+  useEffect(() => {
+    userScrolledRef.current = false;
+    focusReadyRef.current = start == null;
+    offsetRef.current = 0;
+    setOffset(0);
+    setContentH(0);
+  }, [file.path, start]);
+
+  // Measure the flex-allocated viewport (header/footer keep their natural height).
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const measure = () =>
+      setViewportH(Math.max(120, Math.floor(vp.getBoundingClientRect().height)));
+    measure();
+    window.addEventListener("resize", measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro.disconnect();
+    };
+  }, [content, file.path]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || start == null) return;
-    const lineH = 18;
-    el.scrollTop = Math.max(0, (start - 1) * lineH - 72);
-  }, [file.path, start]);
+    const el = contentRef.current;
+    if (!el) return;
+    const measure = () => setContentH(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [file.path, lines]);
+
+  // Jump to focus while the user has not scrolled; ignore remeasures after wheel.
+  useEffect(() => {
+    if (userScrolledRef.current || start == null || contentH <= 0) return;
+    const lineH = contentH / Math.max(1, lines.length);
+    const focusIdx = lines.findIndex(
+      (l) => l.lineNumber != null && l.lineNumber >= start,
+    );
+    const next =
+      focusIdx >= 0
+        ? Math.max(0, focusIdx * lineH - 72)
+        : Math.max(0, (start - 1) * lineH - 72);
+    applyOffset(next);
+    focusReadyRef.current = true;
+  }, [file.path, start, contentH, lines.length, maxOffset]);
+
+  // Keep translateY valid when viewport/content metrics change after scrolling.
+  useEffect(() => {
+    if (!userScrolledRef.current) return;
+    applyOffset(offsetRef.current);
+  }, [maxOffset]);
+
+  // Wheel → translateY; avoids overflow/scrollTop in canvas hosts.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const viewport = viewportRef.current;
+    if (!dialog || !viewport) return;
+    const onWheel = (e: WheelEvent) => {
+      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+      const over =
+        path.includes(viewport) ||
+        (e.target instanceof Node && viewport.contains(e.target));
+      if (!over) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      // Don't treat pre-measure wheels as user scroll — focus jump still needs to run.
+      if (focusReadyRef.current) userScrolledRef.current = true;
+      applyOffset(offsetRef.current + e.deltaY);
+    };
+    dialog.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () =>
+      dialog.removeEventListener("wheel", onWheel, {
+        capture: true,
+      } as EventListenerOptions);
+  }, [file.path, maxOffset, viewportH, contentH]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -602,8 +963,22 @@ function CodePreviewModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const footerCallout = !content ? (
+    <div style={{ flexShrink: 0 }}>
+      <Callout tone="info" style={{ margin: 8 }}>
+        Contents not embedded. Open in editor for the full file.
+      </Callout>
+    </div>
+  ) : null;
+
+  const modalH =
+    typeof window !== "undefined"
+      ? Math.min(window.innerHeight * 0.8, 900)
+      : 720;
+
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={refPathLabel(file)}
@@ -620,46 +995,46 @@ function CodePreviewModal({
       }}
     >
       <div
+        data-map-preview
         onClick={(e: { stopPropagation(): void }) => e.stopPropagation()}
         style={{
           width: "min(920px, 100%)",
-          maxHeight: "min(80vh, 900px)",
+          height: modalH,
+          maxHeight: modalH,
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
           background: theme.bg.elevated,
           border: `1px solid ${theme.stroke.primary}`,
-          borderRadius: 10,
-          overflow: "hidden",
+          borderRadius: 8,
         }}
       >
         <div
           style={{
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             gap: 8,
-            padding: "10px 12px",
-            borderBottom: `1px solid ${theme.stroke.secondary}`,
-            background: theme.bg.chrome,
+            minHeight: 40,
+            padding: "6px 10px",
+            borderBottom: `1px solid ${theme.stroke.tertiary}`,
+            fontSize: 12,
+            fontWeight: 600,
+            color: theme.text.primary,
           }}
         >
-          <Text
-            weight="semibold"
+          <span
             style={{
               flex: 1,
-              fontFamily: MONO_FONT,
-              fontSize: 12,
-              color: theme.text.primary,
+              minWidth: 0,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
             {refPathLabel(file)}
-          </Text>
-          <IconButton
-            title="Open in editor"
-            onClick={() => onOpenInIde(file)}
-          >
+          </span>
+          <IconButton title="Open in editor" onClick={() => onOpenInIde(file)}>
             <OpenExternalIcon />
           </IconButton>
           <Button variant="ghost" onClick={onClose}>
@@ -667,33 +1042,33 @@ function CodePreviewModal({
           </Button>
         </div>
         <div
-          ref={scrollRef}
+          ref={viewportRef}
+          data-map-preview-scroll
+          data-map-preview-line-count={lines.length}
           style={{
             flex: 1,
-            overflow: "auto",
+            minHeight: 0,
+            overflow: "hidden",
+            position: "relative",
             background: theme.bg.editor,
-            minHeight: 240,
           }}
         >
-          <DiffView
-            path={file.path}
-            lines={lines}
-            showLineNumbers
-            showAccentStrip
-          />
-        </div>
-        {!content ? (
           <div
+            ref={contentRef}
             style={{
-              padding: "8px 12px",
-              borderTop: `1px solid ${theme.stroke.secondary}`,
+              transform: `translateY(${-offset}px)`,
+              willChange: "transform",
+              width: "100%",
             }}
           >
-            <Text size="small" tone="secondary">
-              Contents not embedded — open in editor for the full file.
-            </Text>
+            <PreviewDiffContent
+              path={file.path}
+              lines={lines}
+              theme={theme}
+            />
           </div>
-        ) : null}
+        </div>
+        {footerCallout}
       </div>
     </div>
   );
@@ -800,6 +1175,35 @@ function dirShouldExpand(dirRelPath: string, hoverPaths: string[]): boolean {
   );
 }
 
+function dirIsExpanded(
+  dirRelPath: string,
+  activePaths: string[],
+  userExpanded: Record<string, boolean>,
+): boolean {
+  if (dirRelPath in userExpanded) {
+    return userExpanded[dirRelPath];
+  }
+  return activePaths.length > 0 && dirShouldExpand(dirRelPath, activePaths);
+}
+
+function clearCollapsedAncestorsOfPaths(
+  prev: Record<string, boolean>,
+  activePaths: string[],
+): Record<string, boolean> {
+  let next: Record<string, boolean> | null = null;
+  for (const path of activePaths) {
+    const segments = path.split("/");
+    for (let i = 1; i < segments.length; i++) {
+      const ancestor = segments.slice(0, i).join("/");
+      if (prev[ancestor] === false) {
+        if (!next) next = { ...prev };
+        delete next[ancestor];
+      }
+    }
+  }
+  return next ?? prev;
+}
+
 function leavePreview(
   e: {
     relatedTarget: EventTarget | null;
@@ -862,6 +1266,7 @@ function renderDocBlocks(
             const key = block.ref;
             const file = fileRef(key);
             const code = snippet(key);
+            const lines = codeToDiffLines(code, file.line);
             return (
               <div
                 key={i}
@@ -917,20 +1322,34 @@ function renderDocBlocks(
                         previewFile(file);
                       }
                     }}
-                    style={{
-                      border: `1px solid ${theme.stroke.secondary}`,
-                      borderRadius: 6,
-                      overflow: "hidden",
-                      backgroundColor: theme.bg.editor,
-                      cursor: "pointer",
-                    }}
+                    style={{ cursor: "pointer" }}
                   >
-                    <DiffView
-                      path={file.path}
-                      lines={codeToDiffLines(code, file.line)}
-                      showLineNumbers={file.line != null}
-                      showAccentStrip={false}
-                    />
+                    <Card style={{ overflow: "hidden" }}>
+                      <CardHeader>{refPathLabel(file)}</CardHeader>
+                      <CardBody style={{ padding: 0 }}>
+                        <div
+                          data-map-code-scroll
+                          onWheel={(e: {
+                            stopPropagation(): void;
+                          }) => {
+                            e.stopPropagation();
+                          }}
+                          style={{
+                            backgroundColor: theme.bg.editor,
+                            maxHeight: 280,
+                            overflow: "auto",
+                            minHeight: 0,
+                          }}
+                        >
+                          <DiffView
+                            path={file.path}
+                            lines={lines}
+                            showLineNumbers={file.line != null}
+                            showAccentStrip={false}
+                          />
+                        </div>
+                      </CardBody>
+                    </Card>
                   </div>
                 </Stack>
               </div>
@@ -1045,72 +1464,106 @@ function edgePath(e: LaidOutEdge): string {
   return `M ${e.sourceX} ${e.sourceY} C ${mx} ${e.sourceY}, ${mx} ${e.targetY}, ${e.targetX} ${e.targetY}`;
 }
 
+/** Dense tree row height (CollapsibleSection is too tall here). */
+const TREE_ROW_H = 18;
+const TREE_INDENT = 12;
+
 function renderTreeDir(
   dir: TreeDir,
   dirRelPath: string,
   depth: number,
   selectedPaths: string[],
   hoverPaths: string[],
+  activePaths: string[],
+  userExpanded: Record<string, boolean>,
+  onToggleDir: (dirRelPath: string) => void,
   theme: ReturnType<typeof useHostTheme>,
   previewFile: (ref: FileRef) => void,
   typeScale: ReturnType<typeof sidebarType>,
 ): ReactNode {
-  const treeLabelSize = typeScale.body + 1;
-  const activePaths = [...new Set([...selectedPaths, ...hoverPaths])];
+  const treeLabelSize = Math.max(11, typeScale.body - 1);
   const entries = [...dir.children.entries()].sort((a, b) => {
     const aDir = a[1].kind === "dir";
     const bDir = b[1].kind === "dir";
     if (aDir !== bDir) return aDir ? -1 : 1;
     return a[0].localeCompare(b[0]);
   });
+  const rowPadLeft = depth * TREE_INDENT + 4;
 
   return entries.map(([name, entry]) => {
     if (entry.kind === "dir") {
       const childDirPath = dirRelPath ? `${dirRelPath}/${name}` : name;
-      const expanded =
-        activePaths.length > 0 && dirShouldExpand(childDirPath, activePaths);
+      const expanded = dirIsExpanded(childDirPath, activePaths, userExpanded);
       const fileCount = countFiles(entry);
-      const indent = depth * 14;
 
       return (
         <div key={childDirPath}>
           <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleDir(childDirPath);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleDir(childDirPath);
+              }
+            }}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 4,
-              padding: "2px 6px 2px 0",
-              paddingLeft: indent + 6,
-              borderRadius: 4,
-              background: expanded ? theme.fill.tertiary : "transparent",
-              borderLeft: expanded
-                ? `2px solid ${theme.stroke.primary}`
-                : "2px solid transparent",
+              height: TREE_ROW_H,
+              paddingLeft: rowPadLeft,
+              paddingRight: 4,
+              boxSizing: "border-box",
+              fontFamily: MONO_FONT,
+              fontSize: treeLabelSize,
+              lineHeight: 1,
+              color: theme.text.secondary,
+              cursor: "pointer",
+              borderRadius: 2,
             }}
           >
+            <span
+              style={{
+                width: 10,
+                flexShrink: 0,
+                fontSize: 10,
+                lineHeight: 1,
+                color: theme.text.tertiary,
+              }}
+            >
+              {expanded ? "▾" : "▸"}
+            </span>
             <Text
               style={{
+                flex: 1,
+                minWidth: 0,
                 fontFamily: MONO_FONT,
                 fontSize: treeLabelSize,
-                color: theme.text.secondary,
-                flex: 1,
+                lineHeight: 1,
+                color: theme.text.primary,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
-              {expanded ? "▾" : "▸"} {name}
+              {name}
             </Text>
-            {!expanded && activePaths.length === 0 ? (
-              <Text
-                style={{
-                  fontSize: typeScale.meta,
-                  color: theme.text.quaternary,
-                }}
-              >
-                {fileCount}
-              </Text>
-            ) : null}
+            <Text
+              style={{
+                fontSize: 10,
+                lineHeight: 1,
+                color: theme.text.quaternary,
+                flexShrink: 0,
+              }}
+            >
+              {fileCount}
+            </Text>
           </div>
           {expanded
             ? renderTreeDir(
@@ -1119,6 +1572,9 @@ function renderTreeDir(
                 depth + 1,
                 selectedPaths,
                 hoverPaths,
+                activePaths,
+                userExpanded,
+                onToggleDir,
                 theme,
                 previewFile,
                 typeScale,
@@ -1131,7 +1587,6 @@ function renderTreeDir(
     const isSelected = selectedPaths.includes(entry.relPath);
     const isHovered = hoverPaths.includes(entry.relPath);
     const highlighted = isSelected || isHovered;
-    const indent = depth * 14;
 
     return (
       <div
@@ -1148,10 +1603,13 @@ function renderTreeDir(
         style={{
           display: "flex",
           alignItems: "center",
-          padding: "2px 6px 2px 0",
-          paddingLeft: indent + 6,
-          borderRadius: 4,
+          height: TREE_ROW_H,
+          paddingLeft: rowPadLeft,
+          paddingRight: 4,
+          boxSizing: "border-box",
+          borderRadius: 2,
           cursor: "pointer",
+          lineHeight: 1,
           background: isSelected
             ? theme.fill.secondary
             : isHovered
@@ -1171,6 +1629,7 @@ function renderTreeDir(
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             fontWeight: isSelected ? 600 : undefined,
+            lineHeight: 1,
           }}
         >
           {name}
@@ -1199,6 +1658,33 @@ function BuiltinFileTreePanel({
 }) {
   const tree = buildTree(files.map((f) => f.absPath));
   const typeScale = sidebarType(width);
+  const [userExpanded, setUserExpanded] = useCanvasState<Record<string, boolean>>(
+    "treeUserExpanded",
+    {},
+  );
+  // Stabilize on path contents — parents often pass fresh array identities each render.
+  const selectedKey = selectedPaths.join("\0");
+  const hoverKey = hoverPaths.join("\0");
+  const activePaths = useMemo(() => {
+    const selected = selectedKey.length === 0 ? [] : selectedKey.split("\0");
+    const hovered = hoverKey.length === 0 ? [] : hoverKey.split("\0");
+    return [...new Set([...selected, ...hovered])];
+  }, [selectedKey, hoverKey]);
+
+  useEffect(() => {
+    if (activePaths.length === 0) return;
+    setUserExpanded((prev) => clearCollapsedAncestorsOfPaths(prev, activePaths));
+  }, [activePaths, setUserExpanded]);
+
+  const onToggleDir = useCallback(
+    (dirRelPath: string) => {
+      setUserExpanded((prev) => {
+        const expanded = dirIsExpanded(dirRelPath, activePaths, prev);
+        return { ...prev, [dirRelPath]: !expanded };
+      });
+    },
+    [activePaths, setUserExpanded],
+  );
 
   return (
     <aside
@@ -1213,16 +1699,10 @@ function BuiltinFileTreePanel({
         background: "transparent",
         display: "flex",
         flexDirection: "column",
-        gap: 8,
-        padding: "12px 10px",
+        gap: 0,
+        padding: "2px 2px",
       }}
     >
-      <Text
-        weight="semibold"
-        style={{ fontSize: typeScale.title, lineHeight: 1.3 }}
-      >
-        Files in this map
-      </Text>
       <div data-map-tree-scroll style={{ flex: 1, minHeight: 0 }}>
         {renderTreeDir(
           tree,
@@ -1230,6 +1710,9 @@ function BuiltinFileTreePanel({
           0,
           selectedPaths,
           hoverPaths,
+          activePaths,
+          userExpanded,
+          onToggleDir,
           theme,
           previewFile,
           typeScale,
@@ -1478,9 +1961,12 @@ export default function MapView() {
   const selectedEdge =
     focus.kind === "edge" ? (edgeMeta.get(focus.key) ?? null) : null;
   const selectedEntity = selectedEdge ?? selectedNode ?? NODES[0];
-  const selectedPaths = [
-    ...new Set(collectFiles(selectedEntity).map((f) => relPath(f.path))),
-  ];
+  const selectedPaths = useMemo(
+    () => [
+      ...new Set(collectFiles(selectedEntity).map((f) => relPath(f.path))),
+    ],
+    [selectedEntity],
+  );
   const pathIndex = selectedNode ? PATH.indexOf(selectedNode.id) : -1;
   const typeScale = sidebarType(sidebarW);
 
@@ -1878,87 +2364,90 @@ export default function MapView() {
           justifyContent: "center",
         }}
       >
-        <div
+        <Card
           style={{
             pointerEvents: "auto",
-            display: "flex",
-            flexFlow: "row wrap",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
             padding: "10px 14px",
-            borderRadius: 10,
-            background: theme.bg.elevated,
-            border: `1px solid ${theme.stroke.secondary}`,
           }}
         >
-          {ARCH_DIAGRAMS.length > 1
-            ? ARCH_DIAGRAMS.map((d) => (
-                <Button
-                  key={d.id}
-                  variant={d.id === diagram.id ? "primary" : "secondary"}
-                  onClick={() => {
-                    setActiveId(d.id);
-                    fit();
-                  }}
-                >
-                  {d.title}
-                </Button>
-              ))
-            : null}
-          <IconButton
-            title="Zoom out"
-            style={TOOLBAR_ICON_BTN}
-            onClick={() => setZoom(view.zoom - 0.15)}
-          >
-            <ZoomOutIcon />
-          </IconButton>
-          <IconButton
-            title="Zoom in"
-            style={TOOLBAR_ICON_BTN}
-            onClick={() => setZoom(view.zoom + 0.15)}
-          >
-            <ZoomInIcon />
-          </IconButton>
-          <IconButton title="Fit" style={TOOLBAR_ICON_BTN} onClick={fit}>
-            <FitIcon />
-          </IconButton>
-          <Text size="small" tone="tertiary">
-            {Math.round(view.zoom * 100)}%
-          </Text>
-          <IconButton
-            title="Previous step"
-            style={TOOLBAR_ICON_BTN}
-            disabled={pathIndex <= 0 && focus.kind === "node"}
-            onClick={() => go(-1)}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-          <Pill>
-            {focus.kind === "node"
-              ? `${pathIndex + 1} / ${PATH.length}`
-              : "edge"}
-          </Pill>
-          <IconButton
-            title="Next step"
-            style={TOOLBAR_ICON_BTN}
-            disabled={
-              focus.kind === "node" ? pathIndex >= PATH.length - 1 : false
-            }
-            onClick={() => go(1)}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-          {!sidebarOpen ? (
+          <Row gap={8} align="center" wrap>
+            {ARCH_DIAGRAMS.length > 1 ? (
+              <>
+                <Grid columns={ARCH_DIAGRAMS.length} gap={8}>
+                  {ARCH_DIAGRAMS.map((d) => (
+                    <Button
+                      key={d.id}
+                      variant={d.id === diagram.id ? "primary" : "secondary"}
+                      onClick={() => {
+                        setActiveId(d.id);
+                        fit();
+                      }}
+                    >
+                      {d.title}
+                    </Button>
+                  ))}
+                </Grid>
+                <Divider
+                  style={{ width: 1, height: 20, alignSelf: "center" }}
+                />
+              </>
+            ) : null}
             <IconButton
-              title="Open details"
+              title="Zoom out"
               style={TOOLBAR_ICON_BTN}
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setZoom(view.zoom - 0.15)}
             >
-              <SidebarIcon />
+              <ZoomOutIcon />
             </IconButton>
-          ) : null}
-        </div>
+            <IconButton
+              title="Zoom in"
+              style={TOOLBAR_ICON_BTN}
+              onClick={() => setZoom(view.zoom + 0.15)}
+            >
+              <ZoomInIcon />
+            </IconButton>
+            <IconButton title="Fit" style={TOOLBAR_ICON_BTN} onClick={fit}>
+              <FitIcon />
+            </IconButton>
+            <Text size="small" tone="tertiary">
+              {Math.round(view.zoom * 100)}%
+            </Text>
+            <Divider style={{ width: 1, height: 20, alignSelf: "center" }} />
+            <IconButton
+              title="Previous step"
+              style={TOOLBAR_ICON_BTN}
+              disabled={pathIndex <= 0 && focus.kind === "node"}
+              onClick={() => go(-1)}
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+            <Pill>
+              {focus.kind === "node"
+                ? `${pathIndex + 1} / ${PATH.length}`
+                : "edge"}
+            </Pill>
+            <IconButton
+              title="Next step"
+              style={TOOLBAR_ICON_BTN}
+              disabled={
+                focus.kind === "node" ? pathIndex >= PATH.length - 1 : false
+              }
+              onClick={() => go(1)}
+            >
+              <ChevronRightIcon />
+            </IconButton>
+            <Spacer />
+            {!sidebarOpen ? (
+              <IconButton
+                title="Open details"
+                style={TOOLBAR_ICON_BTN}
+                onClick={() => setSidebarOpen(true)}
+              >
+                <SidebarIcon />
+              </IconButton>
+            ) : null}
+          </Row>
+        </Card>
       </div>
 
       {sidebarOpen ? (
@@ -1972,54 +2461,63 @@ export default function MapView() {
             zIndex: 10,
             width: sidebarW,
             boxSizing: "border-box",
-            borderRadius: 10,
-            border: `1px solid ${theme.stroke.secondary}`,
-            background: theme.bg.elevated,
-            overflow: "hidden",
             fontFamily: UI_FONT,
           }}
         >
-          <aside
+          <Card
             style={{
               width: "100%",
               height: "100%",
-              boxSizing: "border-box",
-              padding: typeScale.pad,
-              overflow: "auto",
               display: "flex",
               flexDirection: "column",
-              gap: typeScale.gap,
             }}
           >
-            <Row gap={8} align="center" justify="space-between">
-              <Text
-                weight="semibold"
+            <CardHeader
+              trailing={
+                <IconButton
+                  title="Close details"
+                  style={TOOLBAR_ICON_BTN}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <CloseIcon />
+                </IconButton>
+              }
+            >
+              {sidebarTitle}
+            </CardHeader>
+            <CardBody
+              style={{
+                padding: 0,
+                flex: 1,
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                data-map-sidebar-scroll
                 style={{
-                  fontSize: typeScale.title,
-                  lineHeight: 1.3,
+                  padding: typeScale.pad,
+                  overflow: "auto",
                   flex: 1,
-                  minWidth: 0,
+                  minHeight: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: typeScale.gap,
                 }}
               >
-                {sidebarTitle}
-              </Text>
-              <IconButton
-                title="Close details"
-                style={TOOLBAR_ICON_BTN}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Row>
-            {renderDocBlocks(
-              sidebarBody,
-              typeScale,
-              theme,
-              previewFile,
-              previewFiles,
-              clearPreview,
-            )}
-          </aside>
+                {renderDocBlocks(
+                  sidebarBody,
+                  typeScale,
+                  theme,
+                  previewFile,
+                  previewFiles,
+                  clearPreview,
+                )}
+              </div>
+            </CardBody>
+          </Card>
           <div
             data-sidebar-resize
             title="Drag to resize sidebar"
@@ -2093,10 +2591,6 @@ export default function MapView() {
           zIndex: 10,
           width: treeW,
           boxSizing: "border-box",
-          borderRadius: 10,
-          border: `1px solid ${theme.stroke.secondary}`,
-          background: theme.bg.elevated,
-          overflow: "hidden",
           fontFamily: UI_FONT,
         }}
       >
@@ -2140,7 +2634,7 @@ export default function MapView() {
             left: 0,
             bottom: 0,
             width: 8,
-            zIndex: 1,
+            zIndex: 2,
             cursor: "ew-resize",
             background:
               resizingTreeW || treeResizeHot
@@ -2161,15 +2655,34 @@ export default function MapView() {
             }}
           />
         </div>
-        <FileTreePanel
-          files={mapFiles}
-          selectedPaths={selectedPaths}
-          hoverPaths={hoverPaths}
-          theme={theme}
-          height={panelH}
-          width={treeW}
-          previewFile={previewFile}
-        />
+        <Card
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <CardHeader>Files in this map</CardHeader>
+          <CardBody
+            style={{
+              padding: 0,
+              flex: 1,
+              minHeight: 0,
+              overflow: "hidden",
+            }}
+          >
+            <FileTreePanel
+              files={mapFiles}
+              selectedPaths={selectedPaths}
+              hoverPaths={hoverPaths}
+              theme={theme}
+              height={Math.max(0, panelH - FILES_CARD_HEADER_H)}
+              width={treeW}
+              previewFile={previewFile}
+            />
+          </CardBody>
+        </Card>
       </div>
 
       {filePreview ? (

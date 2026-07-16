@@ -79,9 +79,10 @@ What the script does:
 
 **Ship rule:** `--check` must pass before delivering a map.
 
-Marker rewrite uses the **first** begin marker and the **last** end marker for
-`FILE_CONTENTS` / `MAP_PATHS`, so embedding a source file that itself contains
-those comment markers (e.g. `Map.tsx`) does not truncate the block.
+Marker rewrite matches `// <map:…>` only at **line start**, and scopes
+`FILE_CONTENTS` / `MAP_PATHS` searches after the preceding block. Embedded
+bodies use `JSON.stringify` so backticks and `${}` cannot break the canvas.
+That lets you embed `Map.tsx` itself without truncating the file.
 
 ## UX
 

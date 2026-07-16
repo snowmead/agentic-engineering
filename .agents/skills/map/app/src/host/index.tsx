@@ -396,12 +396,373 @@ export function Pill({
   );
 }
 
+/** Shallow-merge style objects (SDK `mergeStyle` parity). */
+export function mergeStyle(
+  base: CSSProperties,
+  override?: CSSProperties,
+): CSSProperties {
+  return override ? { ...base, ...override } : { ...base };
+}
+
+export function Spacer() {
+  return <div style={{ flex: 1, minWidth: 0 }} />;
+}
+
+export function Divider({ style }: { style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        height: 1,
+        background: HOST_THEME.stroke.tertiary,
+        flexShrink: 0,
+        ...style,
+      }}
+    />
+  );
+}
+
+export function Grid({
+  columns,
+  gap = 8,
+  align,
+  style,
+  children,
+}: {
+  columns: number | string;
+  gap?: number;
+  align?: FlexAlign;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  const template =
+    typeof columns === "number" ? `repeat(${columns}, minmax(0, 1fr))` : columns;
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: template,
+        gap,
+        alignItems: align,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function H2({
+  style,
+  children,
+}: {
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  return (
+    <h2
+      style={{
+        margin: 0,
+        fontSize: 16,
+        fontWeight: 600,
+        color: HOST_THEME.text.primary,
+        ...style,
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+export function H3({
+  style,
+  children,
+}: {
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  return (
+    <h3
+      style={{
+        margin: 0,
+        fontSize: 14,
+        fontWeight: 600,
+        color: HOST_THEME.text.primary,
+        ...style,
+      }}
+    >
+      {children}
+    </h3>
+  );
+}
+
+export function Link({
+  href,
+  style,
+  children,
+}: {
+  href: string;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        color: HOST_THEME.text.link,
+        textDecoration: "none",
+        ...style,
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+export function DiffStats({
+  additions = 0,
+  deletions = 0,
+  style,
+}: {
+  additions?: number;
+  deletions?: number;
+  style?: CSSProperties;
+}) {
+  if (additions === 0 && deletions === 0) return null;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        gap: 6,
+        fontSize: 12,
+        fontVariantNumeric: "tabular-nums",
+        ...style,
+      }}
+    >
+      {additions > 0 ? (
+        <span style={{ color: "#3fb950" }}>+{additions}</span>
+      ) : null}
+      {deletions > 0 ? (
+        <span style={{ color: "#f85149" }}>-{deletions}</span>
+      ) : null}
+    </span>
+  );
+}
+
+type CalloutTone = "info" | "success" | "warning" | "danger" | "neutral";
+
+export function Callout({
+  children,
+  tone = "neutral",
+  title,
+  icon,
+  style,
+}: {
+  children?: ReactNode;
+  tone?: CalloutTone;
+  title?: ReactNode;
+  icon?: ReactNode;
+  style?: CSSProperties;
+}) {
+  const toneBorder: Record<CalloutTone, string> = {
+    info: HOST_THEME.accent.primary,
+    success: "#3fb950",
+    warning: "#d29922",
+    danger: "#f85149",
+    neutral: HOST_THEME.stroke.secondary,
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        padding: "8px 10px",
+        borderRadius: 6,
+        border: `1px solid ${toneBorder[tone]}`,
+        background: HOST_THEME.fill.tertiary,
+        ...style,
+      }}
+    >
+      {(icon || title) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontWeight: 600,
+            fontSize: 12,
+            color: HOST_THEME.text.primary,
+          }}
+        >
+          {icon}
+          {title}
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: HOST_THEME.text.secondary }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function CollapsibleSection({
+  title,
+  leading,
+  count,
+  trailing,
+  children,
+  defaultOpen = false,
+  style,
+}: {
+  title: string;
+  leading?: ReactNode;
+  count?: number;
+  trailing?: ReactNode;
+  children?: ReactNode;
+  defaultOpen?: boolean;
+  style?: CSSProperties;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    setOpen(defaultOpen);
+  }, [defaultOpen]);
+
+  return (
+    <div style={style}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          width: "100%",
+          padding: "1px 2px",
+          minHeight: 22,
+          border: "none",
+          background: "transparent",
+          color: HOST_THEME.text.secondary,
+          cursor: "pointer",
+          textAlign: "left",
+          fontSize: "inherit",
+          fontFamily: "inherit",
+          lineHeight: 1.25,
+        }}
+      >
+        <span style={{ width: 10, flexShrink: 0, fontSize: 11 }}>{open ? "▾" : "▸"}</span>
+        {leading}
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: HOST_THEME.text.primary,
+          }}
+        >
+          {title}
+        </span>
+        {count != null ? (
+          <span style={{ color: HOST_THEME.text.quaternary, fontSize: 10 }}>
+            {count}
+          </span>
+        ) : null}
+        {trailing}
+      </button>
+      {open ? (
+        <div style={{ paddingLeft: 10 }}>{children}</div>
+      ) : null}
+    </div>
+  );
+}
+
+type CardVariant = "default" | "borderless";
+
+export function Card({
+  children,
+  variant = "default",
+  style,
+}: {
+  children?: ReactNode;
+  variant?: CardVariant;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: variant === "borderless" ? 0 : 10,
+        border:
+          variant === "borderless"
+            ? "none"
+            : `1px solid ${HOST_THEME.stroke.secondary}`,
+        background: HOST_THEME.bg.elevated,
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CardHeader({
+  children,
+  trailing,
+  style,
+}: {
+  children?: ReactNode;
+  trailing?: ReactNode;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        minHeight: 28,
+        padding: "6px 10px",
+        borderBottom: `1px solid ${HOST_THEME.stroke.tertiary}`,
+        fontSize: 12,
+        fontWeight: 600,
+        color: HOST_THEME.text.primary,
+        ...style,
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {children}
+      </span>
+      {trailing ? <span style={{ flexShrink: 0 }}>{trailing}</span> : null}
+    </div>
+  );
+}
+
+export function CardBody({
+  children,
+  style,
+}: {
+  children?: ReactNode;
+  style?: CSSProperties;
+}) {
+  return (
+    <div style={{ padding: 12, flex: 1, minHeight: 0, ...style }}>
+      {children}
+    </div>
+  );
+}
+
 type DiffViewProps = {
   path?: string;
   language?: string;
   lines: DiffLineData[];
   showLineNumbers?: boolean;
   showAccentStrip?: boolean;
+  style?: CSSProperties;
 };
 
 function fileNameFromPath(path: string | undefined): string {
@@ -426,7 +787,9 @@ function focusSelectedLines(
         line.type === "modified",
     );
   if (focused.length === 0) return undefined;
-  const nums = focused.map(({ line, i }) => line.lineNumber ?? i + 1);
+  // Index into the contents string passed to Pierre — not absolute file lineNumbers
+  // (windowed previews keep absolute numbers for gutter display only).
+  const nums = focused.map(({ i }) => i + 1);
   return { start: Math.min(...nums), end: Math.max(...nums) };
 }
 
@@ -437,6 +800,7 @@ export function DiffView({
   lines,
   showLineNumbers = true,
   showAccentStrip = false,
+  style,
 }: DiffViewProps) {
   const name = fileNameFromPath(path);
   const file: FileContents = {
@@ -461,6 +825,7 @@ export function DiffView({
         fontSize: 12,
         lineHeight: 1.45,
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        ...style,
       }}
     />
   );
@@ -536,10 +901,14 @@ export function FileTreePanel({
     },
   });
 
-  const active = useMemo(
-    () => [...new Set([...selectedPaths, ...hoverPaths])],
-    [selectedPaths, hoverPaths],
-  );
+  // Stabilize on path contents — MapView may pass fresh array identities each render.
+  const selectedKey = selectedPaths.join("\0");
+  const hoverKey = hoverPaths.join("\0");
+  const active = useMemo(() => {
+    const selected = selectedKey.length === 0 ? [] : selectedKey.split("\0");
+    const hovered = hoverKey.length === 0 ? [] : hoverKey.split("\0");
+    return [...new Set([...selected, ...hovered])];
+  }, [selectedKey, hoverKey]);
 
   useEffect(() => {
     model.resetPaths(relPaths);
@@ -565,22 +934,13 @@ export function FileTreePanel({
         display: "flex",
         flexDirection: "column",
         gap: 8,
-        padding: "12px 10px",
+        padding: "8px 6px",
         fontFamily:
           '"IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
         WebkitFontSmoothing: "antialiased",
         MozOsxFontSmoothing: "grayscale",
       }}
     >
-      <span
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: theme.text.primary,
-        }}
-      >
-        Files in this map
-      </span>
       <div
         data-map-tree-scroll
         style={{
