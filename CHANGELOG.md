@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.3.0 — 2026-07-17
+
+- **erasure:** new skill — erasure claims half the cognitive budget while working (not only on explicit simplify tasks). Training defect framing: labs reward adding; unpruned growth is the symptom everywhere (code, comments, docs, memory).
+- **erasure:** domain-general loop plus **swap rule** (fully delete replaced X), aggressive **comment** policy (no mid-function narration; stale/TODO leave in the same diff), **prose/process GC** (AGENTS/MEMORY/wiki/TODO), confusion-as-signal, reuse-before-invent, and close-every-task obsolete check.
+- **erasure:** primary code metric is branch/decision count (and tool cognitive complexity), not LOC; forbids golf/minification; bug-fix symptom `if`s are failed erasure.
+- **erasure:** language packs for **TypeScript/JavaScript** and **Rust** with tactics (including swap/comment notes) plus project guardrails (detect existing stack; ESLint/Biome complexity + knip; Clippy `cognitive_complexity` / nesting / unused; copy-ready configs and post-pass commands).
+- **Agents:** add `erasure` (read-write Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok — scoped remove/compress/GC; certainty gate (apply only clear erasures; left alone + open questions for the rest); skill documents when to spawn it.
+- **Package:** version `0.3.0` across npm and plugin manifests.
+
 ## 0.2.2 — 2026-07-16
 
 - **map:** full-bleed unified pan/zoom chrome for Canvas and Bun hosts — one camera world (Mermaid architecture + snake), floating overlays, bottom-center toolbar with larger icons, inline sidebar title/close, page scroll lock, `OVERLAY_INSET` sidebars, hover-only scrollbars, file-tree subtitle removed, tree background aligned with sidebar, IBM Plex on Bun `index.html` plus canvas-safe font stacks, host `IconButton` `disabled` support and `FileTreePanel` chrome tweaks; `sync-file-map` uses `lastIndexOf` for end markers; docs (SKILL.md, canvas-pattern, architecture-viewport, code-preview) and C4-style architecture notes updated.
