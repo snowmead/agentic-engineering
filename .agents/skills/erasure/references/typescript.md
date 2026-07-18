@@ -1,8 +1,7 @@
 # Erasure — TypeScript / JavaScript
 
-Read when writing or refactoring `.ts` / `.tsx` / `.js` / `.jsx`, or setting up
-JS/TS erasure guardrails. Global doctrine (half budget, swap rule, comments,
-prose GC): [`../SKILL.md`](../SKILL.md).
+Read [`../SKILL.md`](../SKILL.md) first. This file: syntax branches, tactics,
+tooling.
 
 ---
 
@@ -33,37 +32,10 @@ Nesting depth is a smell; the metric is **decision count**. A symptom-shield
 Prefer type-level erasure: when the compiler proves a case impossible, delete the
 runtime branch.
 
-### Swap rule (TS/JS)
-
-When X becomes Y, finish the kill:
-
-| Kill | Examples |
-|------|----------|
-| Old API surface | Deprecated exports, `/** @deprecated */` shims, dual named exports |
-| Old call sites | Every import of the old name updated or removed |
-| Old tests | Specs that only assert removed behavior — delete, do not skip |
-| Old types | Parallel interfaces left "for compat"; `type Old = New` aliases with no callers |
-| Docs / comments | README snippets, JSDoc that still show the old shape |
-
-Do not leave `export { newFn as oldFn }` unless the user explicitly asked for a
+Swap rule, comments, and preserve rules: see SKILL.md. Finish kills of old
+exports, `@deprecated` shims, dual named exports, and obsolete specs in the same
+change — do not leave `export { newFn as oldFn }` unless the user asked for a
 compat window.
-
-### Comments (TS/JS)
-
-- No mid-function narration (`// increment counter`, `// return result`).
-- Keep only essential *why* / invariants / hazards the types do not carry.
-- No session residue: no JSDoc / `//` that cites the chat, "Phase N", "as
-  discussed", or unshipped future work. Document only what the current code
-  (or a real external constraint) makes true.
-- Stale JSDoc after a signature change: rewrite or delete in the same diff.
-- Done `// TODO` / `// FIXME`: remove with the fix.
-- Prefer clearer names and types over a paragraph above the function.
-
-### Preserve
-
-- Domain-meaningful names
-- Public API the user still wants (if shrinking API, that is an explicit swap)
-- Tests that pin **current** required behavior
 
 ### Verify (lossless)
 
@@ -151,7 +123,8 @@ function fee(money: UsdAmount): number {
 | Typecheck | `tsc`, `tsconfig.json`, existing `typecheck` script |
 
 **Policy:** match the repo. Never install ESLint **and** Biome as dual linters.
-Formatter alone is not an erasure gate.
+Formatter alone is not an erasure gate. Change guardrails only when setup is in
+scope (see SKILL.md).
 
 ### Starting budgets (override if the repo already set numbers)
 
@@ -160,15 +133,22 @@ Formatter alone is not an erasure gate.
 | ESLint | `complexity` | `["error", 15]` |
 | ESLint | `max-depth` | `["error", 4]` |
 | ESLint | `max-nested-callbacks` | `["error", 3]` |
-| ESLint | `max-lines-per-function` | `["warn", { max: 80, skipBlankLines: true, skipComments: true }]` |
 | ESLint | `@typescript-eslint/switch-exhaustiveness-check` | `error` when type-checked linting is available |
 | ESLint | `@typescript-eslint/no-deprecated` (if available) | warn — pressure to finish swaps |
 | Biome | `complexity.noExcessiveCognitiveComplexity` | error, `maxAllowedComplexity: 15` |
 | knip | unused files / exports / deps | fail CI or local `knip` script |
 
+Secondary only (not the erasure score — decisions beat LOC):
+
+| Tool | Rule | Starting default |
+|------|------|------------------|
+| ESLint | `max-lines-per-function` | `["warn", { max: 80, skipBlankLines: true, skipComments: true }]` |
+
 Tighten over time. Do not loosen to silence a god-function; erase the function.
 
 ### Setup checklist
+
+Only when the user asked for setup/hardening or the task explicitly includes tooling:
 
 1. Detect existing linter, formatter, dead-code tool, and typecheck script.
 2. If a linter exists: add complexity budgets only (do not replace the stack).
@@ -202,6 +182,7 @@ export default [
       complexity: ["error", 15],
       "max-depth": ["error", 4],
       "max-nested-callbacks": ["error", 3],
+      // secondary — not the erasure score:
       "max-lines-per-function": [
         "warn",
         { max: 80, skipBlankLines: true, skipComments: true },
@@ -263,3 +244,4 @@ npm test       # or targeted suite; drop obsolete tests, do not skip them
 | Delete still-valid tests to green CI | Lossless failed; fix design |
 | `complexity: 50` "temporarily" forever | Gate becomes theater |
 | Leave deprecated re-exports after a rename | Swap rule unfinished |
+| Add knip/ESLint unprompted on a feature task | Setup not in scope |

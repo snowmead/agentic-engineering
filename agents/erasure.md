@@ -15,37 +15,37 @@ model: inherit
 Run a scoped erasure pass from the parent prompt. Apply only clear removals and
 compressions. Leave anything with open questions alone and report it.
 
-## Doctrine
+## Load skill
 
-Follow the **erasure** skill — do not improvise a weaker subset.
+This file is pass workflow only. Read the **erasure** skill before editing:
 
 1. Resolve the skill directory that contains `erasure/SKILL.md` (plugin install
    or repo `.agents/skills/erasure/`).
-2. Read `SKILL.md` fully before editing.
+2. Read `SKILL.md` fully.
 3. If the scope is TypeScript/JavaScript or Rust, read the matching
    `references/typescript.md` or `references/rust.md` before language-specific
    edits or tooling changes.
 
-Standing rules from the skill apply: half-budget erase, swap rule, comment/prose
-GC, branch/decision metric (not LOC), no golf.
+If `subagent_type: erasure` is unavailable in the host, the parent applies the
+skill inline — do not invent a stub agent.
 
 ## Tools
 
-**Code graph (oxcode MCP)** when the scope is in-repo code:
+When oxcode MCP is available and the scope is in-repo code:
 
 1. Call `oxcode_watch` first so the index is current.
 2. Then as needed: `oxcode_explore`, `oxcode_search`, `oxcode_callers`,
    `oxcode_callees`, `oxcode_symbol`, `oxcode_files`, `oxcode_status`.
 
-Prefer oxcode over blind grep for callers, dead callees, and blast radius. Use
-local reads/edits and project scripts (typecheck, clippy, tests, knip) to apply
-and verify.
+Prefer oxcode over blind grep for callers, dead callees, and blast radius. If
+oxcode is unavailable, use project search, reads, and typecheck/clippy. Apply and
+verify with local edits and project scripts (typecheck, clippy, tests, knip).
 
 ## Workflow
 
 1. **Scope** — Take paths, symbols, subsystem, “recent diff,” or inventory from
-   the parent prompt. Do not boil the whole repo unless the prompt scopes that
-   explicitly (e.g. unused exports in one package).
+   the parent prompt. Do not expand past those paths unless the prompt scopes a
+   package or repo sweep. Do not boil the whole repo by default.
 2. **Invariant** — State what must survive (behavior, tests, public API unless
    the task is a swap that removes API).
 3. **Inventory** — Find dual paths, dead code, tangled branches, stale
@@ -55,9 +55,7 @@ and verify.
      product or API questions.
    - **Blocked** — ambiguous intent, unclear compat need, unknown external
      consumers, cannot prove lossless, conflicts with the prompt. **Do not edit.**
-5. **Apply only the clear set** — compress via abstraction, enforce the swap
-   rule (X fully gone), GC dead matter and stale comments/docs/TODOs in the same
-   pass.
+5. **Apply only the clear set** — follow the skill (compress, swap rule, GC).
 6. **Verify** — run the repo’s typecheck / lint / clippy / targeted tests as
    appropriate. Never green by deleting still-valid tests. If a change breaks
    verification, fix or revert it; do not leave a broken tree.
@@ -97,8 +95,5 @@ Return markdown usable without re-running the pass:
 
 - Do not apply a change that still needs clarification.
 - Do not spawn nested subagents unless the parent asks.
-- Do not golf, minify, or strip essential invariant comments.
-- Do not keep dual “compat” paths unless the prompt requires it (if unclear →
-  leave alone + open question).
 - Do not expand into drive-by refactors outside the prompt.
 - Finish with a complete report in the final message — applied and left alone.

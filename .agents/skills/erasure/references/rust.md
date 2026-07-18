@@ -1,8 +1,7 @@
 # Erasure — Rust
 
-Read when writing or refactoring `.rs` / Cargo projects, or setting up Rust
-erasure guardrails. Global doctrine (half budget, swap rule, comments, prose GC):
-[`../SKILL.md`](../SKILL.md).
+Read [`../SKILL.md`](../SKILL.md) first. This file: syntax branches, tactics,
+tooling.
 
 ---
 
@@ -43,71 +42,14 @@ is unnecessary.
 
 Prefer compile-time erasure: illegal states unrepresentable means whole runtime
 branches can go. Prefer monomorphization or enum dispatch over `Box<dyn Trait>`
-when a single concrete type (or a closed set) is enough — do not reach for `dyn`
-as the default "flexible" shape.
+when a single concrete type (or a closed set) is enough. Do not invent trait
+forests or generic parameters without duplicated call sites that justify them.
+Start concrete; generalize on real repetition.
 
-Do not invent trait forests or generic parameters without duplicated call sites
-that justify them. Start concrete; generalize on real repetition.
-
-### Abstraction moves
-
-Techniques that delete decisions by moving them into the type system:
-
-- **Enum states** — one variant per mutually exclusive state (with per-variant
-  data). Illegal combinations disappear.
-- **Typestate** — distinct types (or type params) per protocol state; invalid
-  transitions are missing methods, not runtime checks.
-- **Phantom / ZST markers** — type-level distinction with no runtime storage.
-- **Newtypes** — branded IDs and construction-time validation so callers cannot
-  pass the wrong or unvalidated value.
-- **Parse, don't validate** — accept raw input only at the edge; inner APIs take
-  validated types. Prefer enums/newtypes over magic strings.
-- **Traits** — sealed traits for in-crate evolution; extension traits for foreign
-  types; associated types on a trait when the output type is part of the
-  abstraction (not an open `impl Trait` in the trait itself).
-- **Generic bounds** — add bounds only where needed (`where` clauses, conditional
-  `impl`s); bound associated types when required (`I::Item: …`).
-- **Conversion traits** — `From`/`TryFrom` at boundaries; accept `impl Into` /
-  `impl AsRef` so one function replaces several overloads.
-- **Errors** — domain error enum + `From` so `?` replaces nested match ladders.
-- **Caution** — over-abstraction (unused generics, factory trait stacks) *adds*
-  decisions. Erasure compresses; it does not invent flexibility.
-
-### Swap rule (Rust)
-
-When X becomes Y, finish the kill:
-
-| Kill | Examples |
-|------|----------|
-| Old API | Dual functions, `#[deprecated]` shims left after migration, re-exports of old paths |
-| Old modules | `mod old` still compiling "for now" |
-| Feature flags | `cfg(feature = "legacy")` paths after the flag is the default forever |
-| Tests | Cases that only lock removed behavior — delete, do not `#[ignore]` |
-| Docs | `//!` / `///` / README still describing X |
-| Allows | `#[allow(dead_code)]` keeping the corpse warm |
-
-Do not keep both spellings of an API unless the user explicitly asked for a
-compat window.
-
-### Comments (Rust)
-
-- No mid-function narration (`// get the value`, `// return ok`).
-- Prefer names, types, and `///` on public items for real invariants.
-- Keep only essential *why* / safety / protocol hazards that signatures cannot
-  carry (especially near `unsafe`).
-- No session residue: no `///` / `//` that cites the chat, "Phase N", "as
-  discussed", or unshipped future work. Document only what the current code
-  (or a real external constraint) makes true.
-- Stale `///` after a signature change: rewrite or delete in the same diff.
-- Done `// TODO` / `// FIXME`: remove with the fix.
-- `// Safety:` on `unsafe` blocks stays when it documents the actual invariant.
-
-### Preserve
-
-- Domain-meaningful names
-- Public signatures the user still wants (API shrink is an explicit swap)
-- Tests that pin **current** required behavior
-- Real safety comments on `unsafe`
+Swap rule, comments, and preserve rules: see SKILL.md. Finish kills of dual
+functions, `#[deprecated]` shims, legacy `cfg` paths, obsolete tests, and
+`#[allow(dead_code)]` on replaced items. Rust-only: keep `// Safety:` on `unsafe`
+when it documents a real invariant.
 
 ### Verify (lossless)
 
@@ -227,6 +169,7 @@ impl Conn<Ready> {
 | CI | workflows running `cargo clippy` / `cargo test` |
 
 Prefer **workspace** lint tables so every crate inherits the same erasure bar.
+Change guardrails only when setup is in scope (see SKILL.md).
 
 ### Lint names and config keys (stable Clippy)
 
@@ -237,7 +180,7 @@ Keys use hyphens in `clippy.toml`; lint names use underscores in Cargo attribute
 | `cognitive_complexity` | Enable explicitly; was `cyclomatic_complexity` | `cognitive-complexity-threshold` | `25` |
 | `excessive_nesting` | Only fires when threshold is set | `excessive-nesting-threshold` | `0` (no limit until set) |
 | `too_many_arguments` | Often warn by default | `too-many-arguments-threshold` | `7` |
-| `too_many_lines` | Often allow until enabled | `too-many-lines-threshold` | `100` |
+| `too_many_lines` | Secondary; not the sole metric | `too-many-lines-threshold` | `100` |
 | `type_complexity` | Secondary pressure | `type-complexity-threshold` | `250` |
 
 ### Starting budgets (override if the repo already set numbers)
@@ -251,6 +194,8 @@ Keys use hyphens in `clippy.toml`; lint names use underscores in Cargo attribute
 | rustc `unused` | warn or deny | Dead-code GC inside the crate |
 
 ### Setup checklist
+
+Only when the user asked for setup/hardening or the task explicitly includes tooling:
 
 1. Detect workspace vs single-crate; prefer `[workspace.lints]`.
 2. Add or adjust `clippy.toml` thresholds.
@@ -330,3 +275,4 @@ Do not leave permanent `#[allow(dead_code)]` on replaced items. Finish the swap.
 | `#[ignore]` obsolete tests | Swap unfinished; delete them |
 | `cognitive-complexity-threshold = 100` forever | Gate becomes theater |
 | Keep `#[deprecated]` shims after migration | Swap rule unfinished |
+| Add Clippy gates unprompted on a feature task | Setup not in scope |
