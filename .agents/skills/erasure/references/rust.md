@@ -1,7 +1,8 @@
 # Erasure — Rust
 
-Read [`../SKILL.md`](../SKILL.md) first. This file: syntax branches, tactics,
-tooling.
+Read [`../SKILL.md`](../SKILL.md) first. This file: language-specific tactics for
+finishing swaps and GC’ing dead paths. Section B is optional project guardrails
+when setup is in scope — not part of the skill’s job.
 
 ---
 

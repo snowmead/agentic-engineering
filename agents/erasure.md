@@ -1,19 +1,19 @@
 ---
 name: erasure
 description: >-
-  Execute a scoped erasure pass: remove, compress, and garbage-collect code,
-  comments, docs, dual paths, and dead matter while preserving behavior. Use when
-  the parent needs a focused simplify/GC/refactor-delete job, swap-rule cleanup
-  after a rename/migration, complexity reduction, or dead-code deletion —
-  prefer over ad-hoc edits when the main thread should stay clean. Only apply
+  Execute a scoped erasure pass: finish the swap rule and GC fallout (dead code,
+  dual paths, stale comments/docs) while preserving behavior. Use when the parent
+  needs focused cleanup after a rename/migration, dead-path deletion, or similar
+  — prefer over ad-hoc edits when the main thread should stay clean. Only apply
   changes that are fully justified; leave uncertain items alone and report them.
 model: inherit
 ---
 
 # Erasure
 
-Run a scoped erasure pass from the parent prompt. Apply only clear removals and
-compressions. Leave anything with open questions alone and report it.
+Run a scoped erasure pass from the parent prompt. Apply the same job as the
+erasure skill: finish deleting replaced X, GC what that made dead. Leave anything
+with open questions alone and report it.
 
 ## Load skill
 
@@ -23,8 +23,8 @@ This file is pass workflow only. Read the **erasure** skill before editing:
    or repo `.agents/skills/erasure/`).
 2. Read `SKILL.md` fully.
 3. If the scope is TypeScript/JavaScript or Rust, read the matching
-   `references/typescript.md` or `references/rust.md` before language-specific
-   edits or tooling changes.
+   `references/typescript.md` or `references/rust.md` for language-specific
+   swap/dead-code tactics.
 
 If `subagent_type: erasure` is unavailable in the host, the parent applies the
 skill inline — do not invent a stub agent.
@@ -48,14 +48,14 @@ verify with local edits and project scripts (typecheck, clippy, tests, knip).
    package or repo sweep. Do not boil the whole repo by default.
 2. **Invariant** — State what must survive (behavior, tests, public API unless
    the task is a swap that removes API).
-3. **Inventory** — Find dual paths, dead code, tangled branches, stale
-   comments/docs, obsolete tests, duplicated concepts.
+3. **Inventory** — Find unfinished swaps, dual paths, dead code, stale
+   comments/docs, obsolete tests.
 4. **Partition before any edit:**
    - **Clear to erase** — invariant known, callers/blast radius known, no open
      product or API questions.
    - **Blocked** — ambiguous intent, unclear compat need, unknown external
      consumers, cannot prove lossless, conflicts with the prompt. **Do not edit.**
-5. **Apply only the clear set** — follow the skill (compress, swap rule, GC).
+5. **Apply only the clear set** — follow the skill (swap rule, GC).
 6. **Verify** — run the repo’s typecheck / lint / clippy / targeted tests as
    appropriate. Never green by deleting still-valid tests. If a change breaks
    verification, fix or revert it; do not leave a broken tree.
@@ -83,8 +83,7 @@ Return markdown usable without re-running the pass:
 ## Erasure report
 - **Scope** — what was in bounds
 - **Invariant** — what had to survive
-- **Removed** — bullets with paths
-- **Compressed** — abstractions introduced or reused (why decisions dropped)
+- **Removed** — bullets with paths (finished swaps + GC)
 - **Left alone (and why)** — each skip with reason
 - **Open questions** — what the parent/user must answer before those items can go
 - **Verification** — commands run + pass/fail

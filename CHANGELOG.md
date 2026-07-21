@@ -2,13 +2,13 @@
 
 ## Unreleased
 
+- **erasure:** narrow the skill to one job — finish the swap rule and GC fallout while editing; demote abstraction loop, half-budget framing, branch metrics, and tooling from the skill’s identity. Language packs remain for TS/Rust tactics; agent is the same job scoped.
+
 ## 0.3.0 — 2026-07-17
 
-- **erasure:** new skill — erasure claims half the cognitive budget while working (not only on explicit simplify tasks). Training defect framing: labs reward adding; unpruned growth is the symptom everywhere (code, comments, docs, memory).
-- **erasure:** domain-general loop plus **swap rule** (fully delete replaced X), aggressive **comment** policy (no mid-function narration; stale/TODO leave in the same diff), **prose/process GC** (AGENTS/MEMORY/wiki/TODO), confusion-as-signal, reuse-before-invent, and close-every-task obsolete check.
-- **erasure:** primary code metric is branch/decision count (and tool cognitive complexity), not LOC; forbids golf/minification; bug-fix symptom `if`s are failed erasure.
-- **erasure:** language packs for **TypeScript/JavaScript** and **Rust** with tactics (including swap/comment notes) plus project guardrails (detect existing stack; ESLint/Biome complexity + knip; Clippy `cognitive_complexity` / nesting / unused; copy-ready configs and post-pass commands).
-- **Agents:** add `erasure` (read-write Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok — scoped remove/compress/GC; certainty gate (apply only clear erasures; left alone + open questions for the rest); skill documents when to spawn it.
+- **erasure:** new skill — standing order to finish deleting replaced X (swap rule) and GC fallout (dead code, dual paths, stale comments/docs) while preserving behavior; not golf/minification.
+- **erasure:** language packs for **TypeScript/JavaScript** and **Rust** with swap/dead-code tactics plus optional project guardrails (ESLint/Biome/knip; Clippy) when setup is in scope.
+- **Agents:** add `erasure` (read-write Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok — scoped swap+GC; certainty gate (apply only clear erasures; left alone + open questions for the rest).
 - **Package:** version `0.3.0` across npm and plugin manifests.
 
 ## 0.2.2 — 2026-07-16

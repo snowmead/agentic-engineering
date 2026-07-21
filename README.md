@@ -11,14 +11,14 @@ Skills follow the [Agent Skills](https://agentskills.io/) open standard.
 | Skill | Description |
 |-------|-------------|
 | [`map`](.agents/skills/map/) | Interactive codebase map (Cursor Canvas or Bun React). Uses the **cartographer** agent for subsystem exploration. |
-| [`erasure`](.agents/skills/erasure/) | Standing half-budget for removal, compression, and GC (swap rule, comment/prose pruning, branch metrics) — domain-general, plus TypeScript and Rust tactics and project guardrails (ESLint/Biome/Clippy, dead-code GC). Dedicated passes use the **erasure** agent when plugin agents are available. |
+| [`erasure`](.agents/skills/erasure/) | Standing order while editing: finish deleting what you replaced (swap rule) and GC the fallout. Dedicated scoped passes use the **erasure** agent when available. |
 
 ### Agents
 
 | Agent | Description |
 |-------|-------------|
 | [`cartographer`](agents/cartographer.md) | Readonly Task subagent: search, learn, and map a topic via oxcode + Parallel Search. Shipped for **Cursor**, **Claude Code**, and **Grok** (shared `agents/` directory). Codex has no plugin agents surface today — MCP still ships. |
-| [`erasure`](agents/erasure.md) | Read-write Task subagent: scoped remove/compress/GC following the erasure skill. Applies only clear erasures; leaves open questions alone and reports them. Cursor / Claude Code / Grok; Codex has no plugin agents today. |
+| [`erasure`](agents/erasure.md) | Read-write Task subagent: scoped swap-rule cleanup and fallout GC following the erasure skill. Applies only clear erasures; leaves open questions alone and reports them. Cursor / Claude Code / Grok; Codex has no plugin agents today. |
 
 ### MCP tools
 
