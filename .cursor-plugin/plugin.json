@@ -1,7 +1,7 @@
 {
   "name": "primitives",
   "displayName": "Primitives",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Reusable agent primitives — skills and tools for coding agents.",
   "author": {
     "name": "Michael Assaf",

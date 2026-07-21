@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **erasure:** narrow the skill to one job — finish the swap rule and GC fallout while editing; demote abstraction loop, half-budget framing, branch metrics, and tooling from the skill’s identity. Language packs remain for TS/Rust tactics; agent is the same job scoped.
+
+## 0.3.0 — 2026-07-17
+
+- **erasure:** new skill — standing order to finish deleting replaced X (swap rule) and GC fallout (dead code, dual paths, stale comments/docs) while preserving behavior; not golf/minification.
+- **erasure:** language packs for **TypeScript/JavaScript** and **Rust** with swap/dead-code tactics plus optional project guardrails (ESLint/Biome/knip; Clippy) when setup is in scope.
+- **Agents:** add `erasure` (read-write Task subagent) under shared `agents/` for Cursor, Claude Code, and Grok — scoped swap+GC; certainty gate (apply only clear erasures; left alone + open questions for the rest).
+- **Package:** version `0.3.0` across npm and plugin manifests.
+
 ## 0.2.2 — 2026-07-16
 
 - **map:** full-bleed unified pan/zoom chrome for Canvas and Bun hosts — one camera world (Mermaid architecture + snake), floating overlays, bottom-center toolbar with larger icons, inline sidebar title/close, page scroll lock, `OVERLAY_INSET` sidebars, hover-only scrollbars, file-tree subtitle removed, tree background aligned with sidebar, IBM Plex on Bun `index.html` plus canvas-safe font stacks, host `IconButton` `disabled` support and `FileTreePanel` chrome tweaks; `sync-file-map` uses `lastIndexOf` for end markers; docs (SKILL.md, canvas-pattern, architecture-viewport, code-preview) and C4-style architecture notes updated.

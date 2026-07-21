@@ -11,12 +11,14 @@ Skills follow the [Agent Skills](https://agentskills.io/) open standard.
 | Skill | Description |
 |-------|-------------|
 | [`map`](.agents/skills/map/) | Interactive codebase map (Cursor Canvas or Bun React). Uses the **cartographer** agent for subsystem exploration. |
+| [`erasure`](.agents/skills/erasure/) | Standing order while editing: finish deleting what you replaced (swap rule) and GC the fallout. Dedicated scoped passes use the **erasure** agent when available. |
 
 ### Agents
 
 | Agent | Description |
 |-------|-------------|
 | [`cartographer`](agents/cartographer.md) | Readonly Task subagent: search, learn, and map a topic via oxcode + Parallel Search. Shipped for **Cursor**, **Claude Code**, and **Grok** (shared `agents/` directory). Codex has no plugin agents surface today — MCP still ships. |
+| [`erasure`](agents/erasure.md) | Read-write Task subagent: scoped swap-rule cleanup and fallout GC following the erasure skill. Applies only clear erasures; leaves open questions alone and reports them. Cursor / Claude Code / Grok; Codex has no plugin agents today. |
 
 ### MCP tools
 
@@ -60,7 +62,7 @@ bunx skills add snowmead/agentic-engineering
 
 Target specific agents with `-a` (repeatable), e.g. `-a cursor -a claude-code`.
 
-**Skills CLI does not install MCP or plugin agents.** For oxcode / Parallel Search and cartographer, use a host plugin install below (Cursor / Claude / Codex / Grok), then run `/primitives-setup` for the oxcode binary.
+**Skills CLI does not install MCP or plugin agents.** For oxcode / Parallel Search and the **cartographer** / **erasure** agents, use a host plugin install below (Cursor / Claude / Codex / Grok), then run `/primitives-setup` for the oxcode binary.
 
 <details>
 <summary><strong>Cursor</strong></summary>
@@ -114,7 +116,7 @@ Approve the **oxcode** and **parallel-search** MCP servers when prompted. Codex 
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/oxgraph/oxcode/releases/latest/download/oxcode-cli-installer.sh | sh
 ```
 
-Codex does **not** load plugin `agents/` today — cartographer is Cursor/Claude/Grok only. Skills-only (no plugin marketplace — **no MCP**):
+Codex does **not** load plugin `agents/` today — cartographer and erasure agents are Cursor/Claude/Grok only. Skills-only (no plugin marketplace — **no MCP**):
 
 ```bash
 bunx skills add snowmead/agentic-engineering -a codex
